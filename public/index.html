@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>LOFT-QUANTUM | Advanced Session Generator</title>
+  <meta name="description" content="LOFT-QUANTUM — lightning-fast WhatsApp bot session generator. Pair code &amp; QR login. Secure, modern, and effortless.">
+  <meta name="theme-color" content="#06b67f">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="LOFT-QUANTUM | WhatsApp Bot Session Generator">
+  <meta property="og:description" content="Instantly generate WhatsApp sessions with pair code or QR login — powered by LOFT-QUANTUM.">
+  <meta property="og:image" content="https://files.catbox.moe/d4nl2o.jpg">
+  <meta property="og:image:width" content="400">
+  <meta property="og:image:height" content="400">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="LOFT-QUANTUM | WhatsApp Bot">
+  <meta name="twitter:description" content="Generate your WhatsApp session instantly with LOFT-QUANTUM.">
+  <meta name="twitter:image" content="https://files.catbox.moe/d4nl2o.jpg">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a1f;
+      color: #f0f9ff;
+      min-height: 100vh;
+      overflow-x: hidden;
+      scrollbar-width: none;
+    }
+    body::-webkit-scrollbar { display: none; }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 50%, #06b67f 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .gradient-bg { background: linear-gradient(135deg, #06b67f, #0ea5e9); }
+
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: 0;
+      will-change: transform;
+    }
+
+    @keyframes blobFloat {
+      0%,100% { transform: translate(0,0) scale(1); }
+      50%      { transform: translate(-25px, 25px) scale(1.08); }
+    }
+
+    .nav-glass {
+      background: rgba(10,10,31,0.88);
+      border-bottom: 1px solid rgba(103,232,249,0.12);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 0 0 28px 28px;
+    }
+
+    .nav-link {
+      position: relative;
+      transition: color 0.2s ease;
+    }
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -3px; left: 0;
+      width: 0; height: 3px;
+      background: linear-gradient(90deg, #67e8f9, #06b67f);
+      transition: width 0.25s ease;
+      border-radius: 3px;
+    }
+    .nav-link:hover { color: #67e8f9; }
+    .nav-link:hover::after { width: 100%; }
+
+    .sidebar-link {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+    .sidebar-link:hover {
+      background: rgba(6,182,127,0.15);
+      color: #67e8f9;
+      transform: translateX(6px);
+    }
+    .sidebar-link i { width: 20px; text-align: center; font-size: 0.95rem; }
+
+    #sidebar {
+      transition: transform 0.35s cubic-bezier(0.32,0.72,0,1);
+    }
+    #sidebarOverlay { transition: opacity 0.35s ease; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      padding: 13px 28px;
+      border-radius: 14px;
+      font-weight: 600; font-size: 0.9rem;
+      text-decoration: none;
+      cursor: pointer; border: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+      will-change: transform;
+    }
+    .btn:active { transform: scale(0.96) !important; }
+    .btn-primary { background: linear-gradient(135deg, #06b67f, #0ea5e9); color: #fff; }
+    .btn-primary:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 14px 34px rgba(6,182,127,0.5); }
+    .btn-ghost { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); color: #fff; }
+    .btn-ghost:hover { transform: translateY(-3px) scale(1.02); background: rgba(255,255,255,0.13); box-shadow: 0 12px 28px rgba(0,0,0,0.35); }
+
+    .icon-animated {
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .btn:hover .icon-animated { transform: scale(1.3) rotate(12deg); }
+
+    .feature-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(103,232,249,0.12);
+      border-radius: 22px;
+      padding: 32px;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease, background 0.28s ease;
+    }
+    .feature-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 26px 52px rgba(6,182,127,0.22);
+      border-color: rgba(103,232,249,0.3);
+      background: rgba(255,255,255,0.06);
+    }
+    .feature-card .card-icon {
+      width: 52px; height: 52px;
+      background: rgba(6,182,127,0.18);
+      border: 1px solid rgba(103,232,249,0.2);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 20px;
+      transition: transform 0.32s cubic-bezier(0.34,1.56,0.64,1), background 0.28s ease;
+    }
+    .feature-card:hover .card-icon {
+      transform: scale(1.18) rotate(-8deg);
+      background: rgba(6,182,127,0.3);
+    }
+    .feature-card .card-icon i { color: #67e8f9; font-size: 1.25rem; }
+
+    .social-icon {
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      display: flex; align-items: center; justify-content: center;
+      color: #64748b;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+    .social-icon:hover { background: rgba(6,182,127,0.25); color: #67e8f9; transform: translateY(-4px); }
+
+    .footer-link { color: #64748b; text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 9px; transition: color 0.2s ease, transform 0.2s ease; }
+    .footer-link:hover { color: #67e8f9; transform: translateX(5px); }
+
+    .hero-avatar {
+      width: 88px; height: 88px;
+      border-radius: 50%;
+      border: 3px solid rgba(103,232,249,0.5);
+      object-fit: cover;
+      box-shadow: 0 0 0 8px rgba(6,182,127,0.15), 0 0 34px rgba(6,182,127,0.35);
+    }
+
+    [data-anim] {
+      will-change: transform, opacity;
+      transition: opacity 0.7s cubic-bezier(0.4,0,0.2,1), transform 0.7s cubic-bezier(0.4,0,0.2,1);
+    }
+    [data-anim="fade-up"]    { opacity: 0; transform: translateY(36px); }
+    [data-anim="fade-down"]  { opacity: 0; transform: translateY(-36px); }
+    [data-anim="zoom-in"]    { opacity: 0; transform: scale(0.85); }
+    [data-anim="zoom-out"]   { opacity: 0; transform: scale(1.1); }
+    [data-anim="slide-left"] { opacity: 0; transform: translateX(-36px); }
+    [data-anim="slide-right"]{ opacity: 0; transform: translateX(36px); }
+    [data-anim].in-view {
+      opacity: 1;
+      transform: translateY(0) scale(1) translateX(0);
+    }
+    [data-delay="1"] { transition-delay: 0.1s; }
+    [data-delay="2"] { transition-delay: 0.2s; }
+    [data-delay="3"] { transition-delay: 0.3s; }
+    [data-delay="4"] { transition-delay: 0.4s; }
+    [data-delay="5"] { transition-delay: 0.5s; }
+    [data-delay="6"] { transition-delay: 0.6s; }
+
+    .badge-pill {
+      display: inline-flex; align-items: center; gap: 9px;
+      background: rgba(6,182,127,0.15);
+      border: 1px solid rgba(103,232,249,0.25);
+      border-radius: 9999px;
+      padding: 6px 16px;
+      font-size: 0.8rem; font-weight: 600;
+      color: #67e8f9;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #86efac;
+      box-shadow: 0 0 8px #86efac;
+    }
+    .divider-line {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(103,232,249,0.15), transparent);
+    }
+  </style>
+</head>
+<body>
+  <div class="blob w-[420px] h-[420px] bg-teal-500/20 top-[-110px] left-[-90px]" style="animation: blobFloat 13s ease-in-out infinite;"></div>
+  <div class="blob w-[360px] h-[360px] bg-cyan-400/12 bottom-[6%] right-[-90px]" style="animation: blobFloat 17s ease-in-out 3s infinite;"></div>
+  <div class="blob w-[280px] h-[280px] bg-sky-500/10 top-[42%] left-[58%]" style="animation: blobFloat 22s ease-in-out 7s infinite;"></div>
+
+  <nav class="nav-glass sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-5 h-12 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3 no-underline group">
+        <img src="https://files.catbox.moe/d4nl2o.jpg" alt="LOFT-QUANTUM" class="w-8 h-8 rounded-full border border-cyan-400/50 object-cover" style="transition: box-shadow 0.2s ease;" onmouseover="this.style.boxShadow='0 0 14px rgba(103,232,249,0.7)'" onmouseout="this.style.boxShadow='none'">
+        <span class="text-base font-bold gradient-text">LOFT-QUANTUM</span>
+      </a>
+      <div class="hidden md:flex items-center gap-7">
+        <a href="https://github.com/xmdloft23/loft-quantum" target="_blank" class="nav-link text-slate-400 text-sm font-medium no-underline flex items-center gap-1.5"><i class="fab fa-github text-xs"></i> Source Code</a>
+        <a href="/pair" class="nav-link text-slate-400 text-sm font-medium no-underline flex items-center gap-1.5"><i class="fas fa-link text-xs"></i> Device Link</a>
+        <a href="/qr" class="nav-link text-slate-400 text-sm font-medium no-underline flex items-center gap-1.5"><i class="fas fa-qrcode text-xs"></i> QR Code</a>
+        <a href="https://t.me/LOFTxmd" target="_blank" class="nav-link text-slate-400 text-sm font-medium no-underline flex items-center gap-1.5"><i class="fab fa-telegram text-xs"></i> Support</a>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="/pair" class="hidden md:inline-flex btn btn-primary py-2 px-5 text-xs">
+          <span class="icon-animated"><i class="fas fa-link"></i></span> Get Session
+        </a>
+        <button id="menuBtn" class="md:hidden w-9 h-9 flex items-center justify-center rounded-lg bg-white/5 border border-white/8 text-slate-400 outline-none focus:outline-none focus:ring-0" style="transition: background 0.18s ease, color 0.18s ease;">
+          <i class="fas fa-bars" id="menuIcon"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div id="sidebarOverlay" class="fixed inset-0 z-40 bg-black/60 opacity-0 pointer-events-none"></div>
+  <aside id="sidebar" class="fixed top-0 left-0 z-50 h-full w-72 bg-[#0a0a1f] border-r border-white/8 flex flex-col pt-5 pb-8 transform -translate-x-full rounded-r-3xl">
+    <div class="flex items-center justify-between px-5 mb-6">
+      <a href="/" class="flex items-center gap-2.5 no-underline">
+        <img src="https://files.catbox.moe/d4nl2o.jpg" alt="LOFT-QUANTUM" class="w-8 h-8 rounded-full border border-cyan-400/50 object-cover">
+        <span class="text-sm font-bold gradient-text">LOFT-QUANTUM</span>
+      </a>
+      <button id="closeBtn" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 text-slate-400" style="transition: background 0.18s, color 0.18s;">
+        <i class="fas fa-times text-sm"></i>
+      </button>
+    </div>
+    <div class="px-3 flex-1 space-y-1">
+      <a href="/" class="sidebar-link"><i class="fas fa-home"></i> Home</a>
+      <a href="/pair" class="sidebar-link"><i class="fas fa-link"></i> Device Link</a>
+      <a href="/qr" class="sidebar-link"><i class="fas fa-qrcode"></i> QR Code</a>
+      <a href="https://github.com/xmdloft23/loft-quantum" target="_blank" class="sidebar-link"><i class="fab fa-github"></i> Source Code</a>
+      <a href="https://t.me/LOFTxmd" target="_blank" class="sidebar-link"><i class="fab fa-telegram"></i> Support</a>
+      <a href="https://whatsapp.com/channel/0029Vb6B9xFCxoAseuG1g610" target="_blank" class="sidebar-link"><i class="fab fa-whatsapp"></i> WA Channel</a>
+    </div>
+    <div class="px-5 pt-5 border-t border-white/8">
+      <p class="text-slate-500 text-xs">Powered by LOFT-XMD</p>
+    </div>
+  </aside>
+
+  <main class="relative z-10">
+    <section class="min-h-screen flex flex-col items-center justify-center text-center px-5 pt-24 pb-16">
+      <div class="max-w-3xl mx-auto w-full">
+        <div class="flex justify-center mb-6" data-anim="zoom-in">
+          <img src="https://files.catbox.moe/d4nl2o.jpg" alt="LOFT-QUANTUM" class="hero-avatar">
+        </div>
+        <div class="flex justify-center mb-5" data-anim="fade-up" data-delay="1">
+          <span class="badge-pill"><span class="status-dot"></span> Session Server Live</span>
+        </div>
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.05] mb-5 gradient-text" data-anim="fade-up" data-delay="2">
+          Next-Gen WhatsApp<br>Session Generator
+        </h1>
+        <p class="text-slate-400 text-base sm:text-lg mb-10 max-w-xl mx-auto leading-relaxed" data-anim="fade-up" data-delay="3">
+          LOFT-QUANTUM gives you instant, secure WhatsApp sessions using pair code or QR login — fast, reliable, and completely effortless.
+        </p>
+        <div class="flex flex-row items-center justify-center gap-3" data-anim="fade-up" data-delay="4">
+          <a href="/pair" class="btn btn-primary">
+            <span class="icon-animated"><i class="fas fa-link"></i></span> Device Link
+          </a>
+          <a href="/qr" class="btn btn-ghost">
+            <span class="icon-animated"><i class="fas fa-qrcode"></i></span> QR Code
+          </a>
+        </div>
+      </div>
+      <div class="mt-20 w-full max-w-3xl mx-auto grid grid-cols-3 gap-4" data-anim="fade-up" data-delay="5">
+        <div class="bg-white/[0.03] border border-white/10 rounded-3xl p-5 text-center">
+          <p class="text-3xl font-bold gradient-text">2</p>
+          <p class="text-slate-400 text-xs mt-1">Login Methods</p>
+        </div>
+        <div class="bg-white/[0.03] border border-white/10 rounded-3xl p-5 text-center">
+          <p class="text-3xl font-bold gradient-text">100%</p>
+          <p class="text-slate-400 text-xs mt-1">Open Source</p>
+        </div>
+        <div class="bg-white/[0.03] border border-white/10 rounded-3xl p-5 text-center">
+          <p class="text-3xl font-bold gradient-text">24/7</p>
+          <p class="text-slate-400 text-xs mt-1">Always Online</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider-line"></div>
+
+    <section class="py-20 px-5">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-14">
+          <h2 class="text-3xl sm:text-4xl font-extrabold gradient-text mb-3" data-anim="fade-up">Powerful Features</h2>
+          <p class="text-slate-400 text-sm max-w-lg mx-auto" data-anim="fade-up" data-delay="1">Everything you need for seamless WhatsApp automation and session management.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <a href="/pair" class="feature-card" data-anim="fade-up" data-delay="1">
+            <div class="card-icon"><i class="fas fa-link"></i></div>
+            <h3 class="text-white font-semibold mb-2">Device Link</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">Connect instantly with a secure pairing code — no phone required.</p>
+          </a>
+          <a href="/qr" class="feature-card" data-anim="fade-up" data-delay="2">
+            <div class="card-icon"><i class="fas fa-qrcode"></i></div>
+            <h3 class="text-white font-semibold mb-2">QR Code Login</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">Classic QR scanning for quick and effortless session creation.</p>
+          </a>
+          <a href="https://github.com/xmdloft23/loft-quantum" target="_blank" class="feature-card" data-anim="fade-up" data-delay="3">
+            <div class="card-icon"><i class="fas fa-code"></i></div>
+            <h3 class="text-white font-semibold mb-2">Fully Open Source</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">Complete GitHub source code — customize and build exactly what you need.</p>
+          </a>
+          <a href="https://t.me/LOFTxmd" target="_blank" class="feature-card" data-anim="fade-up" data-delay="2">
+            <div class="card-icon"><i class="fas fa-headset"></i></div>
+            <h3 class="text-white font-semibold mb-2">Instant Support</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">Get help from our team anytime. Fast setup and troubleshooting included.</p>
+          </a>
+          <a href="https://whatsapp.com/channel/0029Vb6B9xFCxoAseuG1g610" target="_blank" class="feature-card" data-anim="fade-up" data-delay="3">
+            <div class="card-icon"><i class="fab fa-whatsapp"></i></div>
+            <h3 class="text-white font-semibold mb-2">Live Updates</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">Stay ahead with the latest features delivered straight to your WhatsApp.</p>
+          </a>
+          <div class="feature-card cursor-default" data-anim="fade-up" data-delay="4">
+            <div class="card-icon"><i class="fas fa-shield-alt"></i></div>
+            <h3 class="text-white font-semibold mb-2">Military-Grade Security</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">End-to-end encrypted sessions keep your WhatsApp account completely safe.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider-line"></div>
+
+    <section class="py-20 px-5">
+      <div class="max-w-2xl mx-auto text-center">
+        <div data-anim="zoom-in">
+          <div class="w-14 h-14 rounded-3xl gradient-bg flex items-center justify-center mx-auto mb-6" style="box-shadow: 0 8px 32px rgba(6,182,127,0.45);">
+            <i class="fas fa-rocket text-white text-2xl"></i>
+          </div>
+          <h2 class="text-3xl sm:text-4xl font-extrabold text-white mb-4">Ready to Launch?</h2>
+          <p class="text-slate-400 text-sm sm:text-base mb-9 leading-relaxed max-w-lg mx-auto">
+            Experience the fastest and most reliable way to create WhatsApp bot sessions — group automation, messaging, and integrations made simple.
+          </p>
+          <div class="flex flex-row items-center justify-center gap-3">
+            <a href="/pair" class="btn btn-primary" data-anim="slide-left" data-delay="1">
+              <span class="icon-animated"><i class="fas fa-link"></i></span> Start Now
+            </a>
+            <a href="https://github.com/xmdloft23/loft-quantum" target="_blank" class="btn btn-ghost" data-anim="slide-right" data-delay="1">
+              <span class="icon-animated"><i class="fab fa-github"></i></span> Explore GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider-line"></div>
+
+    <footer class="py-12 px-5 bg-[#05050f]">
+      <div class="max-w-6xl mx-auto">
+        <div class="mb-10">
+          <div class="mb-8" data-anim="slide-left">
+            <a href="/" class="flex items-center gap-2.5 no-underline mb-3">
+              <img src="https://files.catbox.moe/d4nl2o.jpg" alt="LOFT-QUANTUM" class="w-7 h-7 rounded-full border border-cyan-400/40 object-cover">
+              <span class="text-sm font-bold gradient-text">LOFT-QUANTUM</span>
+            </a>
+            <p class="text-slate-500 text-xs leading-relaxed mb-4">Modern WhatsApp automation platform with instant session generation and rock-solid reliability.</p>
+            <div class="flex gap-2">
+              <a href="https://github.com/xmdloft23/loft-quantum" target="_blank" class="social-icon"><i class="fab fa-github"></i></a>
+              <a href="https://t.me/LOFTxmd" target="_blank" class="social-icon"><i class="fab fa-telegram"></i></a>
+              <a href="https://whatsapp.com/channel/0029Vb6B9xFCxoAseuG1g610" target="_blank" class="social-icon"><i class="fab fa-whatsapp"></i></a>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-8">
+            <div data-anim="fade-up" data-delay="1">
+              <h3 class="text-white text-xs font-semibold uppercase tracking-wider mb-4">Quick Links</h3>
+              <ul class="space-y-2.5">
+                <li><a href="/pair" class="footer-link"><i class="fas fa-chevron-right text-cyan-400 text-xs"></i> Device Link</a></li>
+                <li><a href="/qr" class="footer-link"><i class="fas fa-chevron-right text-cyan-400 text-xs"></i> QR Code</a></li>
+                <li><a href="https://github.com/xmdloft23/loft-quantum" target="_blank" class="footer-link"><i class="fas fa-chevron-right text-cyan-400 text-xs"></i> Source Code</a></li>
+                <li><a href="/health" class="footer-link"><i class="fas fa-chevron-right text-cyan-400 text-xs"></i> Health Check</a></li>
+              </ul>
+            </div>
+            <div data-anim="slide-right">
+              <h3 class="text-white text-xs font-semibold uppercase tracking-wider mb-4">Community</h3>
+              <ul class="space-y-2.5">
+                <li><a href="https://t.me/LOFTxmd" target="_blank" class="footer-link"><i class="fab fa-telegram text-cyan-400 text-xs"></i> Telegram Support</a></li>
+                <li><a href="https://whatsapp.com/channel/0029Vb6B9xFCxoAseuG1g610" target="_blank" class="footer-link"><i class="fab fa-whatsapp text-cyan-400 text-xs"></i> WhatsApp Channel</a></li>
+                <li><a href="https://github.com/xmdloft23/loft-quantum" target="_blank" class="footer-link"><i class="fab fa-github text-cyan-400 text-xs"></i> GitHub</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="divider-line mb-5"></div>
+        <p class="text-slate-500 text-xs text-center">
+          &copy; <span id="yr"></span> LOFT-QUANTUM • Built by <a href="https://github.com/xmdloft23" target="_blank" class="text-cyan-400 no-underline font-medium" style="transition:color 0.18s;" onmouseover="this.style.color='#67e8f9'" onmouseout="this.style.color='#22d3ee'">LOFT-XMD</a>
+        </p>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    document.getElementById('yr').textContent = new Date().getFullYear();
+
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const menuBtn = document.getElementById('menuBtn');
+    const closeBtn = document.getElementById('closeBtn');
+    const menuIcon = document.getElementById('menuIcon');
+
+    function openSidebar() {
+      sidebar.style.transform = 'translateX(0)';
+      overlay.style.opacity = '1';
+      overlay.style.pointerEvents = 'auto';
+      menuIcon.className = 'fas fa-times';
+      document.body.style.overflow = 'hidden';
+    }
+    function closeSidebar() {
+      sidebar.style.transform = 'translateX(-100%)';
+      overlay.style.opacity = '0';
+      overlay.style.pointerEvents = 'none';
+      menuIcon.className = 'fas fa-bars';
+      document.body.style.overflow = '';
+    }
+
+    menuBtn.addEventListener('click', () => {
+      sidebar.style.transform === 'translateX(0)' ? closeSidebar() : openSidebar();
+      menuBtn.blur();
+    });
+    closeBtn.addEventListener('click', closeSidebar);
+    overlay.addEventListener('click', closeSidebar);
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+        } else {
+          entry.target.classList.remove('in-view');
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('[data-anim]').forEach(el => observer.observe(el));
+
+    (function setCircularFavicon(src) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        ctx.beginPath();
+        ctx.arc(32, 32, 32, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, 0, 0, 64, 64);
+        const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+        link.type = 'image/png';
+        link.rel = 'shortcut icon';
+        link.href = canvas.toDataURL();
+        document.head.appendChild(link);
+      };
+      img.src = src;
+    })('https://files.catbox.moe/d4nl2o.jpg');
+  </script>
+</body>
+</html>
