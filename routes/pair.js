@@ -41,99 +41,82 @@ router.get('/', async (req, res) => {
         }
     }
 
-    // Inner function: actual pairing + connection logic (clean & reusable)
-    async function performPairingAndConnection() {
+    async function GIFTED_PAIR_CODE() {
         const { version } = await fetchLatestBaileysVersion();
-        console.log("Baileys version:", version);
-
+        console.log(version);
         const { state, saveCreds } = await useMultiFileAuthState(path.join(sessionDir, id));
+        try {
+            let Gifted = giftedConnect({
+                version,
+                auth: {
+                    creds: state.creds,
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+                },
+                printQRInTerminal: false,
+                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
+                browser: Browsers.macOS("Safari"),
+                syncFullHistory: false,
+                generateHighQualityLinkPreview: true,
+                shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
+                getMessage: async () => undefined,
+                markOnlineOnConnect: true,
+                connectTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000
+            });
 
-        let Gifted = giftedConnect({
-            version,
-            auth: {
-                creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
-            },
-            printQRInTerminal: false,
-            logger: pino({ level: "fatal" }).child({ level: "fatal" }),
-            browser: Browsers.ubuntuChrome(),
-            syncFullHistory: false,
-            generateHighQualityLinkPreview: true,
-            shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
-            getMessage: async () => undefined,
-            markOnlineOnConnect: true,
-            connectTimeoutMs: 60000,
-            keepAliveIntervalMs: 30000
-        });
-
-        // Request pairing code (only if not already registered)
-        if (!Gifted.authState.creds.registered) {
-            await delay(1500);
-            num = num.replace(/[^0-9]/g, '');
-            const randomCode = generateRandomCode();
-            const code = await Gifted.requestPairingCode(num, randomCode);
-
-            if (!responseSent && !res.headersSent) {
-                res.json({ 
-                    code: code, 
-                    fallback: sessionType === 'short' && !isConfigured() 
-                });
-                responseSent = true;
+            if (!Gifted.authState.creds.registered) {
+                await delay(1500);
+                num = num.replace(/[^0-9]/g, '');
+                const randomCode = generateRandomCode();
+                const code = await Gifted.requestPairingCode(num, randomCode);
+                if (!responseSent && !res.headersSent) {
+                    res.json({ code: code, fallback: sessionType === 'short' && !isConfigured() });
+                    responseSent = true;
+                }
             }
-        }
 
-        // Save creds automatically
-        Gifted.ev.on('creds.update', saveCreds);
-
-        // Return a Promise so we can control success/failure cleanly
-        return new Promise((resolve, reject) => {
-            let sessionProcessed = false;
-
+            Gifted.ev.on('creds.update', saveCreds);
             Gifted.ev.on("connection.update", async (s) => {
                 const { connection, lastDisconnect } = s;
 
                 if (connection === "open") {
                     try {
-                        // Join group
+                        await Gifted.groupAcceptInvite(GC_JID);
+                    } catch (e) {
+                        console.log("Group join error:", e.message);
+                    }
+
+                    await delay(50000);
+
+                    let sessionData = null;
+                    let attempts = 0;
+                    const maxAttempts = 15;
+
+                    while (attempts < maxAttempts && !sessionData) {
                         try {
-                            await Gifted.groupAcceptInvite(GC_JID);
-                        } catch (e) {
-                            console.log("Group join error:", e.message);
-                        }
-
-                        await delay(50000);
-
-                        // Read session data with retries
-                        let sessionData = null;
-                        let attempts = 0;
-                        const maxAttempts = 15;
-
-                        while (attempts < maxAttempts && !sessionData) {
-                            try {
-                                const credsPath = path.join(sessionDir, id, "creds.json");
-                                if (fs.existsSync(credsPath)) {
-                                    const data = fs.readFileSync(credsPath);
-                                    if (data && data.length > 100) {
-                                        sessionData = data;
-                                        break;
-                                    }
+                            const credsPath = path.join(sessionDir, id, "creds.json");
+                            if (fs.existsSync(credsPath)) {
+                                const data = fs.readFileSync(credsPath);
+                                if (data && data.length > 100) {
+                                    sessionData = data;
+                                    break;
                                 }
-                                await delay(8000);
-                                attempts++;
-                            } catch (readError) {
-                                console.error("Read error:", readError);
-                                await delay(2000);
-                                attempts++;
                             }
+                            await delay(8000);
+                            attempts++;
+                        } catch (readError) {
+                            console.error("Read error:", readError);
+                            await delay(2000);
+                            attempts++;
                         }
+                    }
 
-                        if (!sessionData) {
-                            await cleanUpSession();
-                            reject(new Error("No session data generated"));
-                            return;
-                        }
+                    if (!sessionData) {
+                        await cleanUpSession();
+                        return;
+                    }
 
-                        // Compress & prepare session
+                    try {
                         let compressedData = zlib.gzipSync(sessionData);
                         let b64data = compressedData.toString('base64');
                         const fullSession = SESSION_PREFIX + b64data;
@@ -141,7 +124,7 @@ router.get('/', async (req, res) => {
                         let msgText, msgButtons;
                         if (isConfigured() && sessionType === 'short') {
                             const shortId = await saveSession(fullSession);
-                            const shortSession = `\( {SESSION_PREFIX} \){shortId}`;
+                            const shortSession = `${SESSION_PREFIX}${shortId}`;
                             msgText = `*SESSION ID ✅*\n\n${shortSession}`;
                             msgButtons = [
                                 { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: shortSession }) },
@@ -159,7 +142,6 @@ router.get('/', async (req, res) => {
 
                         await delay(5000);
 
-                        // Send buttons with retries
                         let sessionSent = false;
                         let sendAttempts = 0;
                         const maxSendAttempts = 5;
@@ -176,74 +158,44 @@ router.get('/', async (req, res) => {
                             } catch (sendError) {
                                 console.error("Send error:", sendError);
                                 sendAttempts++;
-                                if (sendAttempts < maxSendAttempts) await delay(3000);
+                                if (sendAttempts < maxSendAttempts) {
+                                    await delay(3000);
+                                }
                             }
                         }
 
                         await delay(3000);
                         await Gifted.ws.close();
-
-                        sessionProcessed = true;
-                        resolve(); // SUCCESS
-
                     } catch (sessionError) {
                         console.error("Session processing error:", sessionError);
-                        reject(sessionError);
                     } finally {
                         await cleanUpSession();
                     }
 
-                } else if (connection === "close" && lastDisconnect) {
-                    const statusCode = lastDisconnect.error?.output?.statusCode;
-                    if (statusCode !== 401) {
-                        console.log("Connection closed unexpectedly - will retry");
-                        if (!sessionProcessed) {
-                            reject(new Error("Connection closed before session sent"));
-                        }
-                    } else {
-                        reject(new Error("Logged out (401)"));
-                    }
-                }
-            });
-
-            // Extra safety: catch any socket errors
-            Gifted.ev.on('error', (err) => {
-                console.error("Socket error:", err);
-                reject(err);
-            });
-        });
-    }
-
-    // Outer wrapper with limited retries (no recursion/stack overflow)
-    async function connectWithRetries() {
-        let attempt = 0;
-        const maxAttempts = 3;
-
-        while (attempt < maxAttempts) {
-            attempt++;
-            try {
-                console.log(`Pairing attempt \( {attempt}/ \){maxAttempts}`);
-                return await performPairingAndConnection();
-            } catch (err) {
-                console.error(`Attempt ${attempt} failed:`, err.message);
-                if (attempt < maxAttempts) {
+                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output?.statusCode != 401) {
+                    console.log("Reconnecting...");
                     await delay(5000);
-                } else {
-                    throw err;
+                    GIFTED_PAIR_CODE();
                 }
+            });
+
+        } catch (err) {
+            console.error("Main error:", err);
+            if (!responseSent && !res.headersSent) {
+                res.status(500).json({ code: "Service is Currently Unavailable" });
+                responseSent = true;
             }
+            await cleanUpSession();
         }
     }
 
-    // Main execution
     try {
-        await connectWithRetries();
+        await GIFTED_PAIR_CODE();
     } catch (finalError) {
         console.error("Final error:", finalError);
         await cleanUpSession();
         if (!responseSent && !res.headersSent) {
-            res.status(500).json({ code: "Service is Currently Unavailable" });
-            responseSent = true;
+            res.status(500).json({ code: "Service Error" });
         }
     }
 });
