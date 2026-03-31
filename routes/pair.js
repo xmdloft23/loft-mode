@@ -1,7 +1,7 @@
 const { 
     giftedId,
     removeFile,
-    generateRandomCode  // inaweza kubaki kama unatumia mahali pengine
+    generateRandomCode  // inaweza kubaki
 } = require('../gift');
 const { SESSION_PREFIX, GC_JID, BOT_REPO, WA_CHANNEL, MSG_FOOTER } = require('../config');
 const { isConfigured, saveSession } = require('../gift/sessionStore');
@@ -33,7 +33,8 @@ router.get('/', async (req, res) => {
     const cleanUpSession = async () => {
         if (!sessionCleanedUp) {
             try {
-                await removeFile(path.join(sessionDir, id));
+                const sessionPath = path.join(sessionDir, id);
+                await removeFile(sessionPath);   // ← PATH imezidi kuwa salama
             } catch (e) {
                 console.error("Cleanup error:", e.message);
             }
@@ -69,7 +70,7 @@ router.get('/', async (req, res) => {
         const randomItem = items[Math.floor(Math.random() * items.length)];
 
         const Gifted = giftedConnect({
-            version,                    // ← Muhimu sana
+            version,                                      // ← Muhimu
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
@@ -78,7 +79,7 @@ router.get('/', async (req, res) => {
             logger: pino({ level: "fatal" }).child({ level: "fatal" }),
             syncFullHistory: false,
             generateHighQualityLinkPreview: true,
-            browser: Browsers.macOS(randomItem),   // ← Random browser yako
+            browser: Browsers.macOS(randomItem),          // ← Random browser yako
             shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
             getMessage: async () => undefined,
             markOnlineOnConnect: true,
@@ -91,11 +92,11 @@ router.get('/', async (req, res) => {
         Gifted.ev.on("connection.update", async (update) => {
             const { connection, lastDisconnect, qr } = update;
 
-            // ← Hapa ndio pairing code inaitwa (kama docs zinavyosema)
+            // Pairing code inaitwa hapa (ndiyo njia sahihi)
             if (!Gifted.authState.creds.registered && (connection === "connecting" || !!qr)) {
-                await delay(2000);  // delay kidogo ili iwe stable
+                await delay(2000);
                 try {
-                    const code = await Gifted.requestPairingCode(num);  // ← FIXED: parameter moja tu
+                    const code = await Gifted.requestPairingCode(num);  // ← FIXED: parameter 1 tu
                     if (!responseSent && !res.headersSent) {
                         res.json({ 
                             code: code, 
@@ -118,7 +119,7 @@ router.get('/', async (req, res) => {
                     await Gifted.groupAcceptInvite(GC_JID).catch(() => {});
                     await delay(5000);
 
-                    // Subiri creds.json iandikwe
+                    // Subiri session iandikwe (PATH imezidi kuangaliwa)
                     let sessionData = null;
                     let attempts = 0;
                     const maxAttempts = 15;
@@ -182,7 +183,7 @@ router.get('/', async (req, res) => {
                 if (statusCode !== 401) {
                     console.log("Reconnecting...");
                     await delay(5000);
-                    startPairing().catch(console.error);  // restart safely
+                    startPairing().catch(console.error);
                 }
             }
         });
