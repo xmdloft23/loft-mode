@@ -10,7 +10,7 @@
   "author": "LOFT",
   "license": "MIT",
   "dependencies": {
-    "@whiskeysockets/baileys": "npm:baileys@^6.7.21",
+    "@whiskeysockets/baileys": "npm:gifted-baileys@2.0.6",
     "body-parser": "^2.2.2",
     "dotenv": "^17.3.1",
     "express": "*",
