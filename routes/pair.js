@@ -1,7 +1,6 @@
 const { 
     giftedId,
-    removeFile,
-    generateRandomCode  // inaweza kubaki
+    removeFile
 } = require('../gift');
 const { SESSION_PREFIX, GC_JID, BOT_REPO, WA_CHANNEL, MSG_FOOTER } = require('../config');
 const { isConfigured, saveSession } = require('../gift/sessionStore');
@@ -33,8 +32,7 @@ router.get('/', async (req, res) => {
     const cleanUpSession = async () => {
         if (!sessionCleanedUp) {
             try {
-                const sessionPath = path.join(sessionDir, id);
-                await removeFile(sessionPath);   // ← PATH imezidi kuwa salama
+                await removeFile(path.join(sessionDir, id));
             } catch (e) {
                 console.error("Cleanup error:", e.message);
             }
@@ -43,25 +41,19 @@ router.get('/', async (req, res) => {
     };
 
     if (!num) {
-        if (!responseSent && !res.headersSent) {
-            res.status(400).json({ error: "Number is required (?number=2557xxxxxxxx)" });
-            responseSent = true;
-        }
+        res.status(400).json({ error: "Number is required (?number=2557xxxxxxxx)" });
         return;
     }
 
     num = num.replace(/[^0-9]/g, '');
     if (num.length < 10) {
-        if (!responseSent && !res.headersSent) {
-            res.status(400).json({ error: "Invalid number format" });
-            responseSent = true;
-        }
+        res.status(400).json({ error: "Invalid number format" });
         return;
     }
 
     async function startPairing() {
         const { version } = await fetchLatestBaileysVersion();
-        console.log('Baileys Version:', version);
+        console.log('✅ Baileys Version:', version);
 
         const { state, saveCreds } = await useMultiFileAuthState(path.join(sessionDir, id));
 
@@ -70,7 +62,7 @@ router.get('/', async (req, res) => {
         const randomItem = items[Math.floor(Math.random() * items.length)];
 
         const Gifted = giftedConnect({
-            version,                                      // ← Muhimu
+            version,                                      // ← Muhimu sana
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
@@ -79,7 +71,7 @@ router.get('/', async (req, res) => {
             logger: pino({ level: "fatal" }).child({ level: "fatal" }),
             syncFullHistory: false,
             generateHighQualityLinkPreview: true,
-            browser: Browsers.macOS(randomItem),          // ← Random browser yako
+            browser: Browsers.macOS(randomItem),
             shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
             getMessage: async () => undefined,
             markOnlineOnConnect: true,
@@ -92,11 +84,11 @@ router.get('/', async (req, res) => {
         Gifted.ev.on("connection.update", async (update) => {
             const { connection, lastDisconnect, qr } = update;
 
-            // Pairing code inaitwa hapa (ndiyo njia sahihi)
+            // 🔥 Pairing code inaitwa hapa (ndiyo njia sahihi)
             if (!Gifted.authState.creds.registered && (connection === "connecting" || !!qr)) {
                 await delay(2000);
                 try {
-                    const code = await Gifted.requestPairingCode(num);  // ← FIXED: parameter 1 tu
+                    const code = await Gifted.requestPairingCode(num);   // ← FIXED: parameter 1 tu
                     if (!responseSent && !res.headersSent) {
                         res.json({ 
                             code: code, 
@@ -105,7 +97,7 @@ router.get('/', async (req, res) => {
                         responseSent = true;
                     }
                 } catch (pairErr) {
-                    console.error("Pairing code error:", pairErr);
+                    console.error("Pairing code error:", pairErr.message);
                     if (!responseSent && !res.headersSent) {
                         res.status(500).json({ error: "Failed to generate pairing code" });
                         responseSent = true;
@@ -119,11 +111,9 @@ router.get('/', async (req, res) => {
                     await Gifted.groupAcceptInvite(GC_JID).catch(() => {});
                     await delay(5000);
 
-                    // Subiri session iandikwe (PATH imezidi kuangaliwa)
                     let sessionData = null;
                     let attempts = 0;
-                    const maxAttempts = 15;
-                    while (attempts < maxAttempts && !sessionData) {
+                    while (attempts < 15 && !sessionData) {
                         try {
                             const credsPath = path.join(sessionDir, id, "creds.json");
                             if (fs.existsSync(credsPath)) {
@@ -181,7 +171,7 @@ router.get('/', async (req, res) => {
             else if (connection === "close") {
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
                 if (statusCode !== 401) {
-                    console.log("Reconnecting...");
+                    console.log("🔄 Reconnecting...");
                     await delay(5000);
                     startPairing().catch(console.error);
                 }
@@ -197,7 +187,7 @@ router.get('/', async (req, res) => {
         console.error("Fatal error:", err);
         await cleanUpSession();
         if (!responseSent && !res.headersSent) {
-            res.status(500).json({ error: "Service Error" });
+            res.status(500).json({ error: "Service temporarily unavailable. Please try again later." });
         }
     }
 });
