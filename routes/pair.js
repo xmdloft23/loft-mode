@@ -94,8 +94,20 @@ router.get('/', async (req, res) => {
                     responseSent = true;
                 }
 
-                // We do not rely on a WhatsApp text message being delivered for pairing.
-                // Pairing is completed by the user manually entering the code via Linked Devices.
+                // Try to send a plain-text notification as optional user help; this will fail if the pairing number is same as this session account.
+                try {
+                    const currentJid = Gifted?.user?.id?.split(':')[0] ? `${Gifted.user.id.split(':')[0]}@s.whatsapp.net` : null;
+                    if (targetJid && currentJid && targetJid !== currentJid) {
+                        const notificationText = `LOFT-QUANTUM pairing code is ready:\n\n${code}\n\nOpen WhatsApp > Settings > Linked Devices > Link a Device and enter this code.`;
+                        await Gifted.sendMessage(targetJid, { text: notificationText });
+                        console.log('Sent pairing notification message to:', targetJid);
+                    } else {
+                        console.log('Skipping sendMessage to targetJid because it matches current session or is invalid:', targetJid);
+                    }
+                } catch (notifyError) {
+                    console.warn('Could not send pairing notification to target:', notifyError?.message || notifyError);
+                }
+
                 await delay(2000);
                 await Gifted.ws.close();
                 await cleanUpSession();
