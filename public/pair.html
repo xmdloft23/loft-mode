@@ -34,6 +34,9 @@
       border: 1px solid rgba(103,232,249,0.15);
       border-radius: 26px;
       box-shadow: 0 28px 72px rgba(0,0,0,0.55);
+      /* FIXED: Aligned visibility to show immediately */
+      opacity: 1 !important;
+      transform: none !important;
     }
     .input-field {
       background: rgba(255,255,255,0.06);
@@ -41,21 +44,26 @@
       color: #f0f9ff; border-radius: 14px;
       width: 100%;
     }
-    .btn-primary { background: linear-gradient(135deg, #06b67f, #0ea5e9); color: #fff; }
+    .btn-primary { 
+      background: linear-gradient(135deg, #06b67f, #0ea5e9); 
+      color: #fff; 
+      transition: transform 0.2s;
+    }
+    .btn-primary:active { transform: scale(0.95); }
+    
     .spinner {
-      width: 18px; height: 18px;
-      border: 3px solid rgba(255,255,255,0.25);
+      width: 20px; height: 20px;
+      border: 3px solid rgba(255,255,255,0.2);
       border-top-color: #fff; border-radius: 50%;
-      animation: spin 0.75s linear infinite;
+      animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    
     .code-display {
-      font-size: 2.35rem; font-weight: 800; letter-spacing: 8px;
+      font-size: 2.5rem; font-weight: 800; letter-spacing: 8px;
       background: linear-gradient(135deg, #67e8f9, #06b67f);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
-    /* Fixed: Ensure visibility even if JS delays */
-    .visible-card { opacity: 1 !important; transform: none !important; }
   </style>
 </head>
 <body>
@@ -66,6 +74,7 @@
         <img src="https://files.catbox.moe/d4nl2o.jpg" class="w-8 h-8 rounded-full border border-cyan-400/50">
         <span class="text-base font-bold gradient-text">LOFT-QUANTUM</span>
       </div>
+      <a href="/" class="text-slate-400 text-sm"><i class="fas fa-home"></i> Home</a>
     </div>
   </nav>
 
@@ -73,41 +82,49 @@
     <div class="w-full max-w-md">
       
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold gradient-text mb-1">Secure Device Link</h1>
-        <p class="text-slate-400 text-sm">Tumia format ya 255XXXXXXXXX</p>
+        <h1 class="text-3xl font-bold gradient-text mb-1">Device Link</h1>
+        <p class="text-slate-400 text-sm">Ingiza namba ya WhatsApp (e.g. 255712...)</p>
       </div>
 
-      <div id="resultSection" class="card p-7 hidden mb-6">
-        <div class="text-center mb-6">
-          <p class="text-white font-semibold text-base mb-1">YOur Pairing Code</p>
-          <p class="text-slate-400 text-xs">Ingiza hii kwenye WhatsApp Linked Devices</p>
+      <div id="resultSection" class="card p-7 hidden mb-6 text-center">
+        <div class="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i class="fas fa-check text-emerald-400"></i>
         </div>
-        <div class="bg-cyan-900/10 border border-cyan-400/20 rounded-3xl p-6 text-center mb-5">
+        <p class="text-white font-bold text-lg mb-1">Pairing Code</p>
+        <p class="text-slate-400 text-xs mb-6">Weka kodi hii kwenye simu yako</p>
+        
+        <div class="bg-black/40 border border-white/10 rounded-2xl p-6 mb-6">
           <p id="pairCode" class="code-display">--------</p>
         </div>
-        <button id="copyBtn" class="w-full py-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-400 font-bold">
-          COPY CODE
+
+        <button id="copyBtn" class="w-full py-3 bg-cyan-500/20 border border-cyan-500/40 rounded-xl text-cyan-400 font-bold mb-3">
+          <i class="fas fa-copy mr-2"></i> COPY CODE
         </button>
-        <button onclick="window.location.reload()" class="w-full mt-3 text-slate-500 text-sm">Request New</button>
+        <button onclick="window.location.reload()" class="text-slate-500 text-xs hover:text-white transition-colors">Request New Code</button>
       </div>
 
       <div id="formSection" class="card p-7">
         <div class="mb-5">
           <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">WhatsApp Number</label>
-          <input id="phoneNumber" type="text" placeholder="e.g. 255712345678" class="input-field px-4 py-3 outline-none focus:border-cyan-400">
-          <p id="errorMsg" class="text-rose-400 text-xs mt-2 hidden"></p>
+          <div class="relative">
+             <i class="fas fa-phone-alt absolute left-4 top-4 text-slate-500 text-xs"></i>
+             <input id="phoneNumber" type="text" placeholder="255712345678" class="input-field pl-10 pr-4 py-3 outline-none focus:border-cyan-400">
+          </div>
+          <p id="errorMsg" class="text-rose-400 text-xs mt-3 hidden flex items-center gap-2">
+             <i class="fas fa-circle-exclamation"></i> <span id="errTxt"></span>
+          </p>
         </div>
 
         <div class="mb-6">
-          <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">Session Type</label>
-          <div class="flex gap-2">
-            <button onclick="setType('short')" id="btnShort" class="flex-1 py-2 rounded-lg border border-cyan-500 bg-cyan-500/20 text-white text-sm">Quick</button>
-            <button onclick="setType('long')" id="btnLong" class="flex-1 py-2 rounded-lg border border-white/10 text-slate-400 text-sm">Extended</button>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">Session Mode</label>
+          <div class="flex p-1 bg-black/30 rounded-xl border border-white/5">
+            <button onclick="setType('short')" id="btnShort" class="flex-1 py-2 rounded-lg bg-cyan-500 text-white text-xs font-bold transition-all">Quick</button>
+            <button onclick="setType('long')" id="btnLong" class="flex-1 py-2 rounded-lg text-slate-500 text-xs font-bold transition-all">Extended</button>
           </div>
         </div>
 
-        <button id="submitBtn" class="btn-primary w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2">
-          <span id="btnText">GENERATE CODE</span>
+        <button id="submitBtn" class="btn-primary w-full py-4 rounded-xl font-bold flex items-center justify-center gap-3">
+          <span id="btnText">GENERATE PAIRING CODE</span>
           <div id="loader" class="spinner hidden"></div>
         </button>
       </div>
@@ -120,33 +137,47 @@
     const phoneInput = document.getElementById('phoneNumber');
     const submitBtn = document.getElementById('submitBtn');
     const errorMsg = document.getElementById('errorMsg');
+    const errTxt = document.getElementById('errTxt');
     const pairCode = document.getElementById('pairCode');
     const formSection = document.getElementById('formSection');
     const resultSection = document.getElementById('resultSection');
 
+    // UI Toggle for session type
     function setType(type) {
       selectedType = type;
-      document.getElementById('btnShort').className = type === 'short' ? 'flex-1 py-2 rounded-lg border border-cyan-500 bg-cyan-500/20 text-white text-sm' : 'flex-1 py-2 rounded-lg border border-white/10 text-slate-400 text-sm';
-      document.getElementById('btnLong').className = type === 'long' ? 'flex-1 py-2 rounded-lg border border-cyan-500 bg-cyan-500/20 text-white text-sm' : 'flex-1 py-2 rounded-lg border border-white/10 text-slate-400 text-sm';
+      const bS = document.getElementById('btnShort');
+      const bL = document.getElementById('btnLong');
+      
+      if(type === 'short') {
+        bS.className = 'flex-1 py-2 rounded-lg bg-cyan-500 text-white text-xs font-bold transition-all';
+        bL.className = 'flex-1 py-2 rounded-lg text-slate-500 text-xs font-bold transition-all';
+      } else {
+        bL.className = 'flex-1 py-2 rounded-lg bg-cyan-500 text-white text-xs font-bold transition-all';
+        bS.className = 'flex-1 py-2 rounded-lg text-slate-500 text-xs font-bold transition-all';
+      }
     }
 
     submitBtn.addEventListener('click', async () => {
-      const num = phoneInput.value.replace(/\D/g, '');
+      const num = phoneInput.value.replace(/\D/g, ''); // Safisha namba
       
-      if (num.length < 10) {
-        errorMsg.textContent = "Ingiza namba sahihi ya simu!";
+      if (!num || num.length < 10) {
+        errTxt.textContent = "Ingiza namba sahihi ya simu!";
         errorMsg.classList.remove('hidden');
         return;
       }
 
+      // Reset UI state
       errorMsg.classList.add('hidden');
       document.getElementById('btnText').classList.add('hidden');
       document.getElementById('loader').classList.remove('hidden');
       submitBtn.disabled = true;
 
       try {
-        // FIXED: Correct backtick syntax
+        // FIXED FETCH: Using standard backticks for proper URL building
         const response = await fetch(`/code?number=${num}&type=${selectedType}`);
+        
+        if (!response.ok) throw new Error("Server Error");
+
         const data = await response.json();
 
         if (data.code) {
@@ -154,11 +185,12 @@
           formSection.classList.add('hidden');
           resultSection.classList.remove('hidden');
         } else {
-          throw new Error(data.error || "Server error");
+          throw new Error(data.error || "Mawasiliano yamefeli");
         }
       } catch (err) {
-        errorMsg.textContent = "Server imefeli. Jaribu tena.";
+        errTxt.textContent = "Tatizo la kiufundi. Jaribu tena.";
         errorMsg.classList.remove('hidden');
+        console.error(err);
       } finally {
         document.getElementById('btnText').classList.remove('hidden');
         document.getElementById('loader').classList.add('hidden');
@@ -166,9 +198,16 @@
       }
     });
 
+    // Copy function
     document.getElementById('copyBtn').addEventListener('click', () => {
-      navigator.clipboard.writeText(pairCode.textContent);
-      alert("Code copied!");
+      const code = pairCode.textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        const originalBtn = document.getElementById('copyBtn').innerHTML;
+        document.getElementById('copyBtn').innerHTML = '<i class="fas fa-check mr-2"></i> COPIED!';
+        setTimeout(() => {
+          document.getElementById('copyBtn').innerHTML = originalBtn;
+        }, 2000);
+      });
     });
   </script>
 </body>
