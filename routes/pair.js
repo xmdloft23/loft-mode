@@ -23,8 +23,7 @@ const {
 
 const sessionDir = path.join(__dirname, "session");
 
-// FIXED: Route changed to '/code' to match frontend fetch
-router.get('/code', async (req, res) => {
+router.get('/', async (req, res) => {
     const id = giftedId();
     let num = req.query.number;
     const sessionType = (req.query.type || 'short').toLowerCase();
@@ -34,10 +33,7 @@ router.get('/code', async (req, res) => {
     async function cleanUpSession() {
         if (!sessionCleanedUp) {
             try {
-                const fullPath = path.join(sessionDir, id);
-                if (fs.existsSync(fullPath)) {
-                    await removeFile(fullPath);
-                }
+                await removeFile(path.join(sessionDir, id));
             } catch (cleanupError) {
                 console.error("Cleanup error:", cleanupError);
             }
@@ -47,29 +43,32 @@ router.get('/code', async (req, res) => {
 
     async function GIFTED_PAIR_CODE() {
         const { version } = await fetchLatestBaileysVersion();
+        console.log(version);
         const { state, saveCreds } = await useMultiFileAuthState(path.join(sessionDir, id));
-        
         try {
             let Gifted = giftedConnect({
                 version,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
                 },
                 printQRInTerminal: false,
-                logger: pino({ level: "fatal" }),
-                browser: ["Ubuntu", "Chrome", "20.0.04"], 
+                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
+                browser: Browsers.macOS("Desktop"),
                 syncFullHistory: false,
+                generateHighQualityLinkPreview: true,
+                shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
+                getMessage: async () => undefined,
                 markOnlineOnConnect: true,
+                connectTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000
             });
 
             if (!Gifted.authState.creds.registered) {
                 await delay(1500);
-                num = num.replace(/[^0-9]/g, ''); // Safisha namba
-
-                // FIXED: Removed randomCode. WhatsApp needs ONLY the number here.
-                const code = await Gifted.requestPairingCode(num);
-                
+                num = num.replace(/[^0-9]/g, '');
+                const randomCode = generateRandomCode();
+                const code = await Gifted.requestPairingCode(num, randomCode);
                 if (!responseSent && !res.headersSent) {
                     res.json({ code: code, fallback: sessionType === 'short' && !isConfigured() });
                     responseSent = true;
@@ -78,52 +77,127 @@ router.get('/code', async (req, res) => {
 
             Gifted.ev.on('creds.update', saveCreds);
             Gifted.ev.on("connection.update", async (s) => {
-                const { connection } = s;
+                const { connection, lastDisconnect } = s;
 
                 if (connection === "open") {
-                    try { await Gifted.groupAcceptInvite(GC_JID); } catch (e) {}
-
-                    await delay(10000); 
-                    let sessionData = null;
-                    const credsPath = path.join(sessionDir, id, "creds.json");
-
-                    for (let i = 0; i < 10; i++) {
-                        if (fs.existsSync(credsPath)) {
-                            const data = fs.readFileSync(credsPath);
-                            if (data.length > 200) {
-                                sessionData = data;
-                                break;
-                            }
-                        }
-                        await delay(3000);
+                    try {
+                        await Gifted.groupAcceptInvite(GC_JID);
+                    } catch (e) {
+                        console.log("Group join error:", e.message);
                     }
 
-                    if (sessionData) {
+                    await delay(50000);
+
+                    let sessionData = null;
+                    let attempts = 0;
+                    const maxAttempts = 15;
+
+                    while (attempts < maxAttempts && !sessionData) {
+                        try {
+                            const credsPath = path.join(sessionDir, id, "creds.json");
+                            if (fs.existsSync(credsPath)) {
+                                const data = fs.readFileSync(credsPath);
+                                if (data && data.length > 100) {
+                                    sessionData = data;
+                                    break;
+                                }
+                            }
+                            await delay(8000);
+                            attempts++;
+                        } catch (readError) {
+                            console.error("Read error:", readError);
+                            await delay(2000);
+                            attempts++;
+                        }
+                    }
+
+                    if (!sessionData) {
+                        await cleanUpSession();
+                        return;
+                    }
+
+                    try {
                         let compressedData = zlib.gzipSync(sessionData);
                         let b64data = compressedData.toString('base64');
                         const fullSession = SESSION_PREFIX + b64data;
-                        let msgText = `*SESSION ID ✅*\n\n${fullSession}`;
 
-                        await Gifted.sendMessage(Gifted.user.id, { text: msgText });
-                        
-                        await delay(2000);
+                        let msgText, msgButtons;
+                        if (isConfigured() && sessionType === 'short') {
+                            const shortId = await saveSession(fullSession);
+                            const shortSession = `${SESSION_PREFIX}${shortId}`;
+                            msgText = `*SESSION ID ✅*\n\n${shortSession}`;
+                            msgButtons = [
+                                { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: shortSession }) },
+                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Bot Repo', url: BOT_REPO }) },
+                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Join WaChannel', url: WA_CHANNEL }) }
+                            ];
+                        } else {
+                            msgText = `*SESSION ID ✅*\n\n${fullSession}`;
+                            msgButtons = [
+                                { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: fullSession }) },
+                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Bot Repo', url: BOT_REPO }) },
+                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Join WaChannel', url: WA_CHANNEL }) }
+                            ];
+                        }
+
+                        await delay(5000);
+
+                        let sessionSent = false;
+                        let sendAttempts = 0;
+                        const maxSendAttempts = 5;
+
+                        while (sendAttempts < maxSendAttempts && !sessionSent) {
+                            try {
+                                await sendButtons(Gifted, Gifted.user.id, {
+                                    title: '',
+                                    text: msgText,
+                                    footer: MSG_FOOTER,
+                                    buttons: msgButtons
+                                });
+                                sessionSent = true;
+                            } catch (sendError) {
+                                console.error("Send error:", sendError);
+                                sendAttempts++;
+                                if (sendAttempts < maxSendAttempts) {
+                                    await delay(3000);
+                                }
+                            }
+                        }
+
+                        await delay(3000);
                         await Gifted.ws.close();
+                    } catch (sessionError) {
+                        console.error("Session processing error:", sessionError);
+                    } finally {
                         await cleanUpSession();
                     }
+
+                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output?.statusCode != 401) {
+                    console.log("Reconnecting...");
+                    await delay(5000);
+                    GIFTED_PAIR_CODE();
                 }
             });
 
         } catch (err) {
             console.error("Main error:", err);
-            if (!responseSent) {
-                res.status(500).json({ error: "Service Error" });
+            if (!responseSent && !res.headersSent) {
+                res.status(500).json({ code: "Service is Currently Unavailable" });
                 responseSent = true;
             }
+            await cleanUpSession();
         }
     }
 
-    await GIFTED_PAIR_CODE();
+    try {
+        await GIFTED_PAIR_CODE();
+    } catch (finalError) {
+        console.error("Final error:", finalError);
+        await cleanUpSession();
+        if (!responseSent && !res.headersSent) {
+            res.status(500).json({ code: "Service Error" });
+        }
+    }
 });
 
 module.exports = router;
-           
