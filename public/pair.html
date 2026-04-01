@@ -332,6 +332,7 @@
               <p id="pairCode" class="code-display"></p>
             </div>
 
+            <div id="pairInstructions" class="text-center mt-3 mb-4 text-slate-300 text-xs leading-relaxed"></div>
             <div class="flex gap-3 justify-center">
               <button id="copyBtn" class="copy-btn">
                 <i class="fas fa-copy text-xs"></i>
@@ -501,6 +502,10 @@
           throw new Error(code || 'Service temporarily unavailable. Please try again later.');
         }
         pairCode.textContent = code;
+
+        const instruct = data.instruction || 'Open WhatsApp > Settings > Linked Devices > Link a Device, then paste the code above.';
+        document.getElementById('pairInstructions').textContent = instruct;
+
         if (data.fallback) document.getElementById('fallbackBanner').classList.remove('hidden');
         formSection.classList.add('hidden');
         resultSection.classList.remove('hidden');
