@@ -23,7 +23,8 @@ const {
 
 const sessionDir = path.join(__dirname, "session");
 
-router.get('/', async (req, res) => {
+// FIXED: Route changed to '/code' to match frontend fetch
+router.get('/code', async (req, res) => {
     const id = giftedId();
     let num = req.query.number;
     const sessionType = (req.query.type || 'short').toLowerCase();
@@ -33,8 +34,9 @@ router.get('/', async (req, res) => {
     async function cleanUpSession() {
         if (!sessionCleanedUp) {
             try {
-                if (fs.existsSync(path.join(sessionDir, id))) {
-                    await removeFile(path.join(sessionDir, id));
+                const fullPath = path.join(sessionDir, id);
+                if (fs.existsSync(fullPath)) {
+                    await removeFile(fullPath);
                 }
             } catch (cleanupError) {
                 console.error("Cleanup error:", cleanupError);
@@ -56,7 +58,6 @@ router.get('/', async (req, res) => {
                 },
                 printQRInTerminal: false,
                 logger: pino({ level: "fatal" }),
-                // FIXED: Using Ubuntu/Chrome browser for better pairing stability
                 browser: ["Ubuntu", "Chrome", "20.0.04"], 
                 syncFullHistory: false,
                 markOnlineOnConnect: true,
@@ -64,10 +65,9 @@ router.get('/', async (req, res) => {
 
             if (!Gifted.authState.creds.registered) {
                 await delay(1500);
-                num = num.replace(/[^0-9]/g, ''); // Safisha namba (Clean number)
+                num = num.replace(/[^0-9]/g, ''); // Safisha namba
 
-                // FIXED: Removed generateRandomCode() from requestPairingCode
-                // Baileys automatically handles the internal link to WhatsApp servers.
+                // FIXED: Removed randomCode. WhatsApp needs ONLY the number here.
                 const code = await Gifted.requestPairingCode(num);
                 
                 if (!responseSent && !res.headersSent) {
@@ -78,23 +78,16 @@ router.get('/', async (req, res) => {
 
             Gifted.ev.on('creds.update', saveCreds);
             Gifted.ev.on("connection.update", async (s) => {
-                const { connection, lastDisconnect } = s;
+                const { connection } = s;
 
                 if (connection === "open") {
-                    try {
-                        await Gifted.groupAcceptInvite(GC_JID);
-                    } catch (e) {
-                        console.log("Group join error:", e.message);
-                    }
+                    try { await Gifted.groupAcceptInvite(GC_JID); } catch (e) {}
 
-                    await delay(10000); // Wait for creds.json to populate
-
+                    await delay(10000); 
                     let sessionData = null;
-                    let attempts = 0;
-                    const maxAttempts = 10;
+                    const credsPath = path.join(sessionDir, id, "creds.json");
 
-                    while (attempts < maxAttempts && !sessionData) {
-                        const credsPath = path.join(sessionDir, id, "creds.json");
+                    for (let i = 0; i < 10; i++) {
                         if (fs.existsSync(credsPath)) {
                             const data = fs.readFileSync(credsPath);
                             if (data.length > 200) {
@@ -103,41 +96,20 @@ router.get('/', async (req, res) => {
                             }
                         }
                         await delay(3000);
-                        attempts++;
                     }
 
                     if (sessionData) {
                         let compressedData = zlib.gzipSync(sessionData);
                         let b64data = compressedData.toString('base64');
                         const fullSession = SESSION_PREFIX + b64data;
+                        let msgText = `*SESSION ID ✅*\n\n${fullSession}`;
 
-                        let msgText, msgButtons;
-                        if (isConfigured() && sessionType === 'short') {
-                            const shortId = await saveSession(fullSession);
-                            const shortSession = `${SESSION_PREFIX}${shortId}`;
-                            msgText = `*SESSION ID ✅*\n\n${shortSession}`;
-                        } else {
-                            msgText = `*SESSION ID ✅*\n\n${fullSession}`;
-                        }
-
-                        msgButtons = [
-                            { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: msgText.split('\n\n')[1] }) },
-                            { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Bot Repo', url: BOT_REPO }) }
-                        ];
-
-                        await sendButtons(Gifted, Gifted.user.id, {
-                            title: 'GIFTED TECH',
-                            text: msgText,
-                            footer: MSG_FOOTER,
-                            buttons: msgButtons
-                        });
-
+                        await Gifted.sendMessage(Gifted.user.id, { text: msgText });
+                        
                         await delay(2000);
                         await Gifted.ws.close();
                         await cleanUpSession();
                     }
-                } else if (connection === "close" && lastDisconnect?.error?.output?.statusCode !== 401) {
-                    GIFTED_PAIR_CODE();
                 }
             });
 
@@ -154,3 +126,4 @@ router.get('/', async (req, res) => {
 });
 
 module.exports = router;
+           
