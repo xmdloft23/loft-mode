@@ -1,203 +1,374 @@
-const { 
-    giftedId,
-    removeFile,
-    generateRandomCode
-} = require('../gift');
-const { SESSION_PREFIX, GC_JID, BOT_REPO, WA_CHANNEL, MSG_FOOTER } = require('../config');
-const { isConfigured, saveSession } = require('../gift/sessionStore');
-const zlib = require('zlib');
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-let router = express.Router();
-const pino = require("pino");
-const { sendButtons } = require('gifted-btns');
-const {
-    default: giftedConnect,
-    useMultiFileAuthState,
-    delay,
-    fetchLatestBaileysVersion,
-    makeCacheableSignalKeyStore,
-    Browsers
-} = require("@whiskeysockets/baileys");
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>LOFT-QUANTUM | Secure Device Link</title>
+  <meta name="description" content="Instantly connect your WhatsApp to LOFT-QUANTUM with a one-time pairing code. No QR needed — lightning fast and fully encrypted.">
+  <meta name="theme-color" content="#06b67f">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="LOFT-QUANTUM | Secure Device Link">
+  <meta property="og:description" content="Pair your WhatsApp instantly with LOFT-QUANTUM using a code — no scanning required.">
+  <meta property="og:image" content="https://files.catbox.moe/d4nl2o.jpg">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:image" content="https://files.catbox.moe/d4nl2o.jpg">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a1f;
+      color: #f0f9ff;
+      min-height: 100vh;
+      overflow-x: hidden;
+      scrollbar-width: none;
+    }
+    body::-webkit-scrollbar { display: none; }
 
-const sessionDir = path.join(__dirname, "session");
+    .gradient-text {
+      background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 50%, #06b67f 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .gradient-bg { background: linear-gradient(135deg, #06b67f, #0ea5e9); }
 
-router.get('/', async (req, res) => {
-    const id = giftedId();
-    let num = req.query.number;
-    const sessionType = (req.query.type || 'short').toLowerCase();
-    let responseSent = false;
-    let sessionCleanedUp = false;
-
-    async function cleanUpSession() {
-        if (!sessionCleanedUp) {
-            try {
-                await removeFile(path.join(sessionDir, id));
-            } catch (cleanupError) {
-                console.error("Cleanup error:", cleanupError);
-            }
-            sessionCleanedUp = true;
-        }
+    .blob {
+      position: fixed; border-radius: 50%;
+      filter: blur(100px); pointer-events: none; z-index: 0; will-change: transform;
+    }
+    @keyframes blobFloat {
+      0%,100% { transform: translate(0,0) scale(1); }
+      50%      { transform: translate(-25px,25px) scale(1.08); }
     }
 
-    async function GIFTED_PAIR_CODE() {
-        const { version } = await fetchLatestBaileysVersion();
-        console.log(version);
-        const { state, saveCreds } = await useMultiFileAuthState(path.join(sessionDir, id));
-        try {
-            let Gifted = giftedConnect({
-                version,
-                auth: {
-                    creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
-                },
-                printQRInTerminal: false,
-                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
-                browser: Browsers.macOS("Desktop"),
-                syncFullHistory: false,
-                generateHighQualityLinkPreview: true,
-                shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
-                getMessage: async () => undefined,
-                markOnlineOnConnect: true,
-                connectTimeoutMs: 60000,
-                keepAliveIntervalMs: 30000
-            });
+    .nav-glass {
+      background: rgba(10,10,31,0.88);
+      border-bottom: 1px solid rgba(103,232,249,0.12);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 0 0 28px 28px;
+    }
+    .nav-link { position: relative; transition: color 0.2s ease; }
+    .nav-link::after {
+      content: '';
+      position: absolute; bottom: -3px; left: 0;
+      width: 0; height: 3px;
+      background: linear-gradient(90deg, #67e8f9, #06b67f);
+      transition: width 0.25s ease; border-radius: 3px;
+    }
+    .nav-link:hover { color: #67e8f9; }
+    .nav-link:hover::after { width: 100%; }
 
-            if (!Gifted.authState.creds.registered) {
-                await delay(1500);
-                num = num.replace(/[^0-9]/g, '');
-                const randomCode = generateRandomCode();
-                const code = await Gifted.requestPairingCode(num, randomCode);
-                if (!responseSent && !res.headersSent) {
-                    res.json({ code: code, fallback: sessionType === 'short' && !isConfigured() });
-                    responseSent = true;
-                }
-            }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 14px; border-radius: 14px;
+      color: #94a3b8; text-decoration: none;
+      font-size: 0.9rem; font-weight: 500;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+    .sidebar-link:hover { background: rgba(6,182,127,0.15); color: #67e8f9; transform: translateX(6px); }
+    .sidebar-link i { width: 20px; text-align: center; font-size: 0.95rem; }
 
-            Gifted.ev.on('creds.update', saveCreds);
-            Gifted.ev.on("connection.update", async (s) => {
-                const { connection, lastDisconnect } = s;
+    #sidebar { transition: transform 0.35s cubic-bezier(0.32,0.72,0,1); }
+    #sidebarOverlay { transition: opacity 0.35s ease; }
 
-                if (connection === "open") {
-                    try {
-                        await Gifted.groupAcceptInvite(GC_JID);
-                    } catch (e) {
-                        console.log("Group join error:", e.message);
-                    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      padding: 13px 26px; border-radius: 14px;
+      font-weight: 600; font-size: 0.9rem;
+      cursor: pointer; border: none; text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+      will-change: transform;
+    }
+    .btn:active { transform: scale(0.96) !important; }
+    .btn-primary { background: linear-gradient(135deg, #06b67f, #0ea5e9); color: #fff; }
+    .btn-primary:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 14px 34px rgba(6,182,127,0.5); }
+    .btn-primary:disabled { opacity: 0.65; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+    .btn-ghost { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); color: #fff; }
+    .btn-ghost:hover { transform: translateY(-3px); background: rgba(255,255,255,0.13); }
 
-                    await delay(50000);
+    .icon-animated {
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .btn:hover .icon-animated { transform: scale(1.3) rotate(12deg); }
 
-                    let sessionData = null;
-                    let attempts = 0;
-                    const maxAttempts = 15;
+    .social-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      display: flex; align-items: center; justify-content: center;
+      color: #64748b; font-size: 0.9rem; text-decoration: none;
+      transition: background 0.2s, color 0.2s, transform 0.2s;
+    }
+    .social-icon:hover { background: rgba(6,182,127,0.25); color: #67e8f9; transform: translateY(-4px); }
 
-                    while (attempts < maxAttempts && !sessionData) {
-                        try {
-                            const credsPath = path.join(sessionDir, id, "creds.json");
-                            if (fs.existsSync(credsPath)) {
-                                const data = fs.readFileSync(credsPath);
-                                if (data && data.length > 100) {
-                                    sessionData = data;
-                                    break;
-                                }
-                            }
-                            await delay(8000);
-                            attempts++;
-                        } catch (readError) {
-                            console.error("Read error:", readError);
-                            await delay(2000);
-                            attempts++;
-                        }
-                    }
+    .footer-link { color: #64748b; text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 9px; transition: color 0.2s, transform 0.2s; }
+    .footer-link:hover { color: #67e8f9; transform: translateX(5px); }
+    .divider-line { height: 1px; background: linear-gradient(90deg, transparent, rgba(103,232,249,0.15), transparent); }
 
-                    if (!sessionData) {
-                        await cleanUpSession();
-                        return;
-                    }
-
-                    try {
-                        let compressedData = zlib.gzipSync(sessionData);
-                        let b64data = compressedData.toString('base64');
-                        const fullSession = SESSION_PREFIX + b64data;
-
-                        let msgText, msgButtons;
-                        if (isConfigured() && sessionType === 'short') {
-                            const shortId = await saveSession(fullSession);
-                            const shortSession = `${SESSION_PREFIX}${shortId}`;
-                            msgText = `*SESSION ID ✅*\n\n${shortSession}`;
-                            msgButtons = [
-                                { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: shortSession }) },
-                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Bot Repo', url: BOT_REPO }) },
-                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Join WaChannel', url: WA_CHANNEL }) }
-                            ];
-                        } else {
-                            msgText = `*SESSION ID ✅*\n\n${fullSession}`;
-                            msgButtons = [
-                                { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: fullSession }) },
-                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Bot Repo', url: BOT_REPO }) },
-                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Join WaChannel', url: WA_CHANNEL }) }
-                            ];
-                        }
-
-                        await delay(5000);
-
-                        let sessionSent = false;
-                        let sendAttempts = 0;
-                        const maxSendAttempts = 5;
-
-                        while (sendAttempts < maxSendAttempts && !sessionSent) {
-                            try {
-                                await sendButtons(Gifted, Gifted.user.id, {
-                                    title: '',
-                                    text: msgText,
-                                    footer: MSG_FOOTER,
-                                    buttons: msgButtons
-                                });
-                                sessionSent = true;
-                            } catch (sendError) {
-                                console.error("Send error:", sendError);
-                                sendAttempts++;
-                                if (sendAttempts < maxSendAttempts) {
-                                    await delay(3000);
-                                }
-                            }
-                        }
-
-                        await delay(3000);
-                        await Gifted.ws.close();
-                    } catch (sessionError) {
-                        console.error("Session processing error:", sessionError);
-                    } finally {
-                        await cleanUpSession();
-                    }
-
-                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output?.statusCode != 401) {
-                    console.log("Reconnecting...");
-                    await delay(5000);
-                    GIFTED_PAIR_CODE();
-                }
-            });
-
-        } catch (err) {
-            console.error("Main error:", err);
-            if (!responseSent && !res.headersSent) {
-                res.status(500).json({ code: "Service is Currently Unavailable" });
-                responseSent = true;
-            }
-            await cleanUpSession();
-        }
+    .card {
+      background: rgba(15,23,42,0.96);
+      border: 1px solid rgba(103,232,249,0.15);
+      border-radius: 26px;
+      box-shadow: 0 28px 72px rgba(0,0,0,0.55), 0 0 0 1px rgba(6,182,127,0.12);
     }
 
-    try {
-        await GIFTED_PAIR_CODE();
-    } catch (finalError) {
-        console.error("Final error:", finalError);
-        await cleanUpSession();
-        if (!responseSent && !res.headersSent) {
-            res.status(500).json({ code: "Service Error" });
-        }
+    .input-field {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.16);
+      color: #f0f9ff; border-radius: 14px;
+      font-size: 0.9rem;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+      width: 100%;
     }
-});
+    .input-field::placeholder { color: #64748b; }
+    .input-field:focus {
+      outline: none;
+      border-color: rgba(103,232,249,0.6);
+      box-shadow: 0 0 0 4px rgba(6,182,127,0.2);
+    }
 
-module.exports = router;
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%,60%  { transform: translateX(-7px); }
+      40%,80%  { transform: translateX(7px); }
+    }
+    .shake { animation: shake 0.45s ease; }
+
+    @keyframes spinOnce {
+      to { transform: rotate(360deg); }
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 3px solid rgba(255,255,255,0.25);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spinOnce 0.75s linear infinite;
+    }
+
+    .code-display {
+      font-size: 2.35rem; font-weight: 800; letter-spacing: 8px;
+      background: linear-gradient(135deg, #67e8f9, #22d3ee, #06b67f);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    .copy-btn {
+      transition: transform 0.2s ease, background 0.2s ease;
+      background: rgba(6,182,127,0.2); border: 1px solid rgba(103,232,249,0.3);
+      border-radius: 12px; color: #67e8f9;
+      padding: 9px 20px; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 7px;
+    }
+    .copy-btn:hover { background: rgba(6,182,127,0.32); transform: translateY(-3px); }
+    .copy-btn.copied { background: rgba(134,239,172,0.2); border-color: rgba(134,239,172,0.4); color: #86efac; }
+
+    .new-btn {
+      transition: transform 0.2s ease, background 0.2s ease;
+      background: transparent; border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 12px; color: #94a3b8;
+      padding: 9px 20px; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 7px;
+    }
+    .new-btn:hover { background: rgba(255,255,255,0.08); transform: translateY(-3px); color: #f0f9ff; }
+
+    [data-anim] {
+      will-change: transform, opacity;
+      transition: opacity 0.7s cubic-bezier(0.4,0,0.2,1), transform 0.7s cubic-bezier(0.4,0,0.2,1);
+    }
+    [data-anim="fade-up"]    { opacity: 0; transform: translateY(32px); }
+    [data-anim="zoom-in"]    { opacity: 0; transform: scale(0.88); }
+    [data-anim="slide-left"] { opacity: 0; transform: translateX(-32px); }
+    [data-anim="slide-right"]{ opacity: 0; transform: translateX(32px); }
+    [data-anim].in-view { opacity: 1; transform: translateY(0) scale(1) translateX(0); }
+    [data-delay="1"] { transition-delay: 0.12s; }
+    [data-delay="2"] { transition-delay: 0.24s; }
+    [data-delay="3"] { transition-delay: 0.36s; }
+    [data-delay="4"] { transition-delay: 0.48s; }
+  </style>
+</head>
+<body>
+  <div class="blob w-96 h-96 bg-teal-500/20 top-[-100px] left-[-100px]" style="animation:blobFloat 16s ease-in-out infinite;"></div>
+  <div class="blob w-80 h-80 bg-cyan-400/10 bottom-[8%] right-[-80px]" style="animation:blobFloat 21s ease-in-out 3s infinite;"></div>
+
+  <nav class="nav-glass sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-5 h-12 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3 no-underline">
+        <img src="https://files.catbox.moe/d4nl2o.jpg" alt="LOFT-QUANTUM" class="w-8 h-8 rounded-full border border-cyan-400/50 object-cover" style="transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 0 14px rgba(103,232,249,0.7)'" onmouseout="this.style.boxShadow='none'">
+        <span class="text-base font-bold gradient-text">LOFT-QUANTUM</span>
+      </a>
+      <div class="hidden md:flex items-center gap-7">
+        <a href="https://github.com/xmdloft23/loft-quantum" target="_blank" class="nav-link text-slate-400 text-sm font-medium no-underline flex items-center gap-1.5"><i class="fab fa-github text-xs"></i> Source Code</a>
+        <a href="/pair" class="nav-link text-cyan-400 text-sm font-medium no-underline flex items-center gap-1.5"><i class="fas fa-link text-xs"></i> Device Link</a>
+        <a href="/qr" class="nav-link text-slate-400 text-sm font-medium no-underline flex items-center gap-1.5"><i class="fas fa-qrcode text-xs"></i> QR Code</a>
+        <a href="https://t.me/LOFTxmd" target="_blank" class="nav-link text-slate-400 text-sm font-medium no-underline flex items-center gap-1.5"><i class="fab fa-telegram text-xs"></i> Support</a>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="/qr" class="hidden md:inline-flex btn btn-ghost py-2 px-4 text-xs">
+          <span class="icon-animated"><i class="fas fa-qrcode"></i></span> Try QR Scan
+        </a>
+        <button id="menuBtn" class="md:hidden w-9 h-9 flex items-center justify-center rounded-lg bg-white/5 border border-white/8 text-slate-400 outline-none focus:outline-none focus:ring-0" style="transition:background 0.18s, color 0.18s;">
+          <i class="fas fa-bars" id="menuIcon"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div id="sidebarOverlay" class="fixed inset-0 z-40 bg-black/60 opacity-0 pointer-events-none"></div>
+  <aside id="sidebar" class="fixed top-0 left-0 z-50 h-full w-72 bg-[#0a0a1f] border-r border-white/8 flex flex-col pt-5 pb-8 transform -translate-x-full rounded-r-3xl">
+    <div class="flex items-center justify-between px-5 mb-6">
+      <a href="/" class="flex items-center gap-2.5 no-underline">
+        <img src="https://files.catbox.moe/d4nl2o.jpg" alt="LOFT-QUANTUM" class="w-8 h-8 rounded-full border border-cyan-400/50 object-cover">
+        <span class="text-sm font-bold gradient-text">LOFT-QUANTUM</span>
+      </a>
+      <button id="closeBtn" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 text-slate-400" style="transition:background 0.18s,color 0.18s;">
+        <i class="fas fa-times text-sm"></i>
+      </button>
+    </div>
+    <div class="px-3 flex-1 space-y-1">
+      <a href="/" class="sidebar-link"><i class="fas fa-home"></i> Home</a>
+      <a href="/pair" class="sidebar-link" style="background:rgba(6,182,127,0.12);color:#67e8f9;"><i class="fas fa-link"></i> Device Link</a>
+      <a href="/qr" class="sidebar-link"><i class="fas fa-qrcode"></i> QR Code</a>
+      <a href="https://github.com/xmdloft23/loft-quantum" target="_blank" class="sidebar-link"><i class="fab fa-github"></i> Source Code</a>
+      <a href="https://t.me/LOFTxmd" target="_blank" class="sidebar-link"><i class="fab fa-telegram"></i> Support</a>
+      <a href="https://whatsapp.com/channel/0029Vb6B9xFCxoAseuG1g610" target="_blank" class="sidebar-link"><i class="fab fa-whatsapp"></i> WA Channel</a>
+    </div>
+    <div class="px-5 pt-5 border-t border-white/8">
+      <p class="text-slate-500 text-xs">Powered by LOFT-XMD</p>
+    </div>
+  </aside>
+
+  <main class="relative z-10">
+    <section class="min-h-[calc(100vh-64px)] flex flex-col items-center justify-center px-5 py-12">
+      <div class="w-full max-w-md">
+
+        <div class="text-center mb-8" data-anim="fade-up">
+          <div class="flex justify-center mb-4">
+            <div class="relative">
+              <img src="https://files.catbox.moe/d4nl2o.jpg" alt="LOFT-QUANTUM" class="w-20 h-20 rounded-full border-2 border-cyan-400/60 object-cover" style="box-shadow:0 0 0 6px rgba(6,182,127,0.12),0 0 30px rgba(6,182,127,0.3);">
+              <span class="absolute -bottom-1 -right-1 w-6 h-6 bg-[#0a0a1f] rounded-full border border-cyan-400/40 flex items-center justify-center">
+                <i class="fas fa-link text-cyan-400 text-xs"></i>
+              </span>
+            </div>
+          </div>
+          <h1 class="text-3xl font-bold gradient-text mb-1">Secure Device Link</h1>
+          <p class="text-slate-400 text-sm">Enter your WhatsApp number — no country code prefix</p>
+        </div>
+
+        <div class="card p-7" data-anim="zoom-in" data-delay="1">
+          <div id="formSection">
+            <div class="mb-5">
+              <label for="phoneNumber" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">WhatsApp Number</label>
+              <div class="relative">
+                <i class="fas fa-mobile-screen-button absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                <input
+                  id="phoneNumber"
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="e.g. 255xxxxxxxx"
+                  class="input-field pl-10 pr-4 py-3"
+                >
+              </div>
+              <p id="phoneError" class="text-rose-400 text-xs mt-2 hidden flex items-center gap-1.5">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="phoneErrorText"></span>
+              </p>
+            </div>
+
+            <div class="mb-5">
+              <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Session Duration</label>
+              <div class="flex rounded-2xl overflow-hidden border border-white/12 bg-white/[0.04]">
+                <button type="button" id="typeShort" onclick="selectType('short')"
+                  class="flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200"
+                  style="background:linear-gradient(135deg,#06b67f,#0ea5e9);color:#fff;">
+                  <i class="fas fa-bolt text-xs"></i> Quick
+                </button>
+                <button type="button" id="typeLong" onclick="selectType('long')"
+                  class="flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200"
+                  style="background:transparent;color:#64748b;">
+                  <i class="fas fa-clock text-xs"></i> Extended
+                </button>
+              </div>
+            </div>
+
+            <button id="submitBtn" class="btn btn-primary w-full py-3 text-sm">
+              <span id="btnContent" class="flex items-center gap-2">
+                <span class="icon-animated"><i class="fas fa-shield-halved"></i></span>
+                <span>GENERATE CODE</span>
+              </span>
+              <span id="btnLoading" class="hidden flex items-center gap-2">
+                <span class="spinner"></span>
+                <span>Generating secure code...</span>
+              </span>
+            </button>
+
+            <p id="generalError" class="text-rose-400 text-xs text-center mt-3 hidden"></p>
+
+            <div class="mt-5 pt-5 border-t border-white/8 flex items-center justify-center gap-3">
+              <span class="text-slate-500 text-xs">Want QR instead?</span>
+              <a href="/qr" class="text-cyan-400 text-xs font-medium no-underline flex items-center gap-1" style="transition:color 0.18s;" onmouseover="this.style.color='#67e8f9'" onmouseout="this.style.color='#22d3ee'">
+                <i class="fas fa-qrcode text-xs"></i> Switch to QR mode
+              </a>
+            </div>
+          </div>
+
+          <div id="resultSection" class="hidden">
+            <div id="fallbackBanner" class="hidden mb-4 rounded-2xl p-3.5 border border-sky-400/30 bg-sky-900/10 flex items-start gap-3">
+              <i class="fas fa-info-circle text-sky-400 mt-0.5 text-sm flex-shrink-0"></i>
+              <p class="text-sky-300 text-xs leading-relaxed">No session store found — automatically using <strong>Extended session</strong>.</p>
+            </div>
+            <div class="text-center mb-6">
+              <div class="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-check text-emerald-400"></i>
+              </div>
+              <p class="text-white font-semibold text-base mb-1">Your One-Time Code</p>
+              <p class="text-slate-400 text-xs">Paste this into WhatsApp → Linked Devices → Link a Device</p>
+            </div>
+
+            <div class="bg-cyan-900/10 border border-cyan-400/20 rounded-3xl p-6 text-center mb-5">
+              <p id="pairCode" class="code-display"></p>
+            </div>
+
+            <div class="flex gap-3 justify-center">
+              <button id="copyBtn" class="copy-btn">
+                <i class="fas fa-copy text-xs"></i>
+                <span id="copyText">Copy to Clipboard</span>
+              </button>
+              <button id="newCodeBtn" class="new-btn">
+                <i class="fas fa-rotate-right text-xs"></i> Request New
+              </button>
+            </div>
+
+            <div class="mt-5 pt-5 border-t border-white/8 text-center">
+              <a href="/" class="text-slate-400 text-xs no-underline flex items-center justify-center gap-1.5" style="transition:color 0.18s;" onmouseover="this.style.color='#67e8f9'" onmouseout="this.style.color='#64748b'">
+                <i class="fas fa-arrow-left text-xs"></i> Return to Dashboard
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 grid grid-cols-3 gap-3" data-anim="fade-up" data-delay="2">
+          <div class="bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-center">
+            <i class="fas fa-lock text-cyan-400 text-base mb-1.5 block"></i>
+            <p class="text-slate-400 text-xs">End-to-End Encrypted</p>
+          </div>
+          <div class="bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-center">
+            <i class="fas fa-rocket text-cyan-400 text-base mb-1.5 block"></i>
+            <p class="text-slate-400 text-xs">Instant Delivery</p>
+          </div>
+          <div class="bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-center">
+            <i class="fas fa-wifi text-cyan-400 text-base mb-1.5 block"></i>
+            <p class="text-slate-400 text-xs">Zero Device Required</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider-line"></div>
+    <footer class="py-8 px-5 bg-[#05050f]">
+      <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <a href="/" class="flex items-center gap-2 no-underline">
+          <img src="https://files.catbox.moe/d4nl2o.jpg" alt="LOFT-QUANTUM" class="w-6 h-6 rounded-full border borde
