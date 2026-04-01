@@ -33,7 +33,9 @@ router.get('/', async (req, res) => {
     async function cleanUpSession() {
         if (!sessionCleanedUp) {
             try {
-                await removeFile(path.join(sessionDir, id));
+                if (fs.existsSync(path.join(sessionDir, id))) {
+                    await removeFile(path.join(sessionDir, id));
+                }
             } catch (cleanupError) {
                 console.error("Cleanup error:", cleanupError);
             }
@@ -43,32 +45,31 @@ router.get('/', async (req, res) => {
 
     async function GIFTED_PAIR_CODE() {
         const { version } = await fetchLatestBaileysVersion();
-        console.log(version);
         const { state, saveCreds } = await useMultiFileAuthState(path.join(sessionDir, id));
+        
         try {
             let Gifted = giftedConnect({
                 version,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
                 },
                 printQRInTerminal: false,
-                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
-                browser: Browsers.macOS("Desktop"),
+                logger: pino({ level: "fatal" }),
+                // FIXED: Using Ubuntu/Chrome browser for better pairing stability
+                browser: ["Ubuntu", "Chrome", "20.0.04"], 
                 syncFullHistory: false,
-                generateHighQualityLinkPreview: true,
-                shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
-                getMessage: async () => undefined,
                 markOnlineOnConnect: true,
-                connectTimeoutMs: 60000,
-                keepAliveIntervalMs: 30000
             });
 
             if (!Gifted.authState.creds.registered) {
                 await delay(1500);
-                num = num.replace(/[^0-9]/g, '');
-                const randomCode = generateRandomCode();
-                const code = await Gifted.requestPairingCode(num, randomCode);
+                num = num.replace(/[^0-9]/g, ''); // Safisha namba (Clean number)
+
+                // FIXED: Removed generateRandomCode() from requestPairingCode
+                // Baileys automatically handles the internal link to WhatsApp servers.
+                const code = await Gifted.requestPairingCode(num);
+                
                 if (!responseSent && !res.headersSent) {
                     res.json({ code: code, fallback: sessionType === 'short' && !isConfigured() });
                     responseSent = true;
@@ -86,37 +87,26 @@ router.get('/', async (req, res) => {
                         console.log("Group join error:", e.message);
                     }
 
-                    await delay(50000);
+                    await delay(10000); // Wait for creds.json to populate
 
                     let sessionData = null;
                     let attempts = 0;
-                    const maxAttempts = 15;
+                    const maxAttempts = 10;
 
                     while (attempts < maxAttempts && !sessionData) {
-                        try {
-                            const credsPath = path.join(sessionDir, id, "creds.json");
-                            if (fs.existsSync(credsPath)) {
-                                const data = fs.readFileSync(credsPath);
-                                if (data && data.length > 100) {
-                                    sessionData = data;
-                                    break;
-                                }
+                        const credsPath = path.join(sessionDir, id, "creds.json");
+                        if (fs.existsSync(credsPath)) {
+                            const data = fs.readFileSync(credsPath);
+                            if (data.length > 200) {
+                                sessionData = data;
+                                break;
                             }
-                            await delay(8000);
-                            attempts++;
-                        } catch (readError) {
-                            console.error("Read error:", readError);
-                            await delay(2000);
-                            attempts++;
                         }
+                        await delay(3000);
+                        attempts++;
                     }
 
-                    if (!sessionData) {
-                        await cleanUpSession();
-                        return;
-                    }
-
-                    try {
+                    if (sessionData) {
                         let compressedData = zlib.gzipSync(sessionData);
                         let b64data = compressedData.toString('base64');
                         const fullSession = SESSION_PREFIX + b64data;
@@ -126,78 +116,41 @@ router.get('/', async (req, res) => {
                             const shortId = await saveSession(fullSession);
                             const shortSession = `${SESSION_PREFIX}${shortId}`;
                             msgText = `*SESSION ID ✅*\n\n${shortSession}`;
-                            msgButtons = [
-                                { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: shortSession }) },
-                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Bot Repo', url: BOT_REPO }) },
-                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Join WaChannel', url: WA_CHANNEL }) }
-                            ];
                         } else {
                             msgText = `*SESSION ID ✅*\n\n${fullSession}`;
-                            msgButtons = [
-                                { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: fullSession }) },
-                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Bot Repo', url: BOT_REPO }) },
-                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Join WaChannel', url: WA_CHANNEL }) }
-                            ];
                         }
 
-                        await delay(5000);
+                        msgButtons = [
+                            { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: msgText.split('\n\n')[1] }) },
+                            { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Bot Repo', url: BOT_REPO }) }
+                        ];
 
-                        let sessionSent = false;
-                        let sendAttempts = 0;
-                        const maxSendAttempts = 5;
+                        await sendButtons(Gifted, Gifted.user.id, {
+                            title: 'GIFTED TECH',
+                            text: msgText,
+                            footer: MSG_FOOTER,
+                            buttons: msgButtons
+                        });
 
-                        while (sendAttempts < maxSendAttempts && !sessionSent) {
-                            try {
-                                await sendButtons(Gifted, Gifted.user.id, {
-                                    title: '',
-                                    text: msgText,
-                                    footer: MSG_FOOTER,
-                                    buttons: msgButtons
-                                });
-                                sessionSent = true;
-                            } catch (sendError) {
-                                console.error("Send error:", sendError);
-                                sendAttempts++;
-                                if (sendAttempts < maxSendAttempts) {
-                                    await delay(3000);
-                                }
-                            }
-                        }
-
-                        await delay(3000);
+                        await delay(2000);
                         await Gifted.ws.close();
-                    } catch (sessionError) {
-                        console.error("Session processing error:", sessionError);
-                    } finally {
                         await cleanUpSession();
                     }
-
-                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output?.statusCode != 401) {
-                    console.log("Reconnecting...");
-                    await delay(5000);
+                } else if (connection === "close" && lastDisconnect?.error?.output?.statusCode !== 401) {
                     GIFTED_PAIR_CODE();
                 }
             });
 
         } catch (err) {
             console.error("Main error:", err);
-            if (!responseSent && !res.headersSent) {
-                res.status(500).json({ code: "Service is Currently Unavailable" });
+            if (!responseSent) {
+                res.status(500).json({ error: "Service Error" });
                 responseSent = true;
             }
-            await cleanUpSession();
         }
     }
 
-    try {
-        await GIFTED_PAIR_CODE();
-    } catch (finalError) {
-        console.error("Final error:", finalError);
-        await cleanUpSession();
-        if (!responseSent && !res.headersSent) {
-            res.status(500).json({ code: "Service Error" });
-        }
-    }
+    await GIFTED_PAIR_CODE();
 });
 
 module.exports = router;
