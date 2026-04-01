@@ -65,13 +65,11 @@ router.get('/', async (req, res) => {
                 keepAliveIntervalMs: 30000
             });
 
-            const customPairCode = 'QUANTUM2'; // au random kama hauhitajiki
-
             if (!Gifted.authState.creds.registered) {
                 await delay(1500);
                 num = num.replace(/[^0-9]/g, '');
                 const targetJid = num.endsWith('@s.whatsapp.net') || num.endsWith('@c.us') ? num : `${num}@s.whatsapp.net`;
-                const pairCode = customPairCode || generateRandomCode();
+                const pairCode = generateRandomCode();
 
                 let code;
                 try {
