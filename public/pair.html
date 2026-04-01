@@ -494,7 +494,7 @@
       submitBtn.disabled = true;
 
       try {
-        const res  = await fetch(`/code?number=\( {encodeURIComponent(num)}&type= \){selectedType}`);
+        const res  = await fetch(`/code?number=${encodeURIComponent(num)}&type=${selectedType}`);
         const data = await res.json();
         const code = data.code || '';
         if (!res.ok || !code || code.toLowerCase().includes('error') || code.toLowerCase().includes('unavailable')) {
