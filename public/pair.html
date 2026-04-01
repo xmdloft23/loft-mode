@@ -1,189 +1,203 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>LOFT-QUANTUM | Link Device</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #0a0a1f;
-      color: #f0f9ff;
-      margin: 0;
-    }
-    .gradient-text {
-      background: linear-gradient(135deg, #67e8f9, #06b67f);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .card {
-      background: rgba(15,23,42,0.95);
-      border: 1px solid rgba(103,232,249,0.2);
-      border-radius: 24px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-      display: block !important;
-      opacity: 1 !important;
-    }
-    .input-field {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: #fff;
-      border-radius: 12px;
-      outline: none;
-      transition: border-color 0.3s;
-    }
-    .input-field:focus { border-color: #06b67f; }
-    .btn-primary {
-      background: linear-gradient(135deg, #06b67f, #0ea5e9);
-      transition: all 0.3s ease;
-    }
-    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-    .code-box {
-      font-size: 2.2rem;
-      letter-spacing: 6px;
-      font-weight: 800;
-      color: #67e8f9;
-    }
-    .spinner {
-      width: 20px; height: 20px;
-      border: 3px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
-</head>
-<body class="min-h-screen flex flex-col">
+const { 
+    giftedId,
+    removeFile,
+    generateRandomCode
+} = require('../gift');
+const { SESSION_PREFIX, GC_JID, BOT_REPO, WA_CHANNEL, MSG_FOOTER } = require('../config');
+const { isConfigured, saveSession } = require('../gift/sessionStore');
+const zlib = require('zlib');
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+let router = express.Router();
+const pino = require("pino");
+const { sendButtons } = require('gifted-btns');
+const {
+    default: giftedConnect,
+    useMultiFileAuthState,
+    delay,
+    fetchLatestBaileysVersion,
+    makeCacheableSignalKeyStore,
+    Browsers
+} = require("@whiskeysockets/baileys");
 
-  <nav class="p-4 border-b border-white/5 bg-black/20 backdrop-blur-md">
-    <div class="max-w-4xl mx-auto flex items-center gap-3">
-      <img src="https://files.catbox.moe/d4nl2o.jpg" class="w-8 h-8 rounded-full border border-cyan-500">
-      <span class="font-bold gradient-text">LOFT-QUANTUM</span>
-    </div>
-  </nav>
+const sessionDir = path.join(__dirname, "session");
 
-  <main class="flex-1 flex items-center justify-center p-6">
-    <div class="w-full max-w-md">
-      
-      <div class="text-center mb-8">
-        <h2 class="text-3xl font-extrabold mb-2 text-white">Link Your Device</h2>
-        <p class="text-slate-400 text-sm">Enter your WhatsApp number with Country Code</p>
-      </div>
+router.get('/', async (req, res) => {
+    const id = giftedId();
+    let num = req.query.number;
+    const sessionType = (req.query.type || 'short').toLowerCase();
+    let responseSent = false;
+    let sessionCleanedUp = false;
 
-      <div id="resultView" class="card p-8 hidden text-center">
-        <p class="text-slate-400 text-sm mb-2">Your Pairing Code:</p>
-        <div class="bg-black/50 py-6 rounded-2xl border border-white/10 mb-6">
-          <span id="pairCode" class="code-box">--------</span>
-        </div>
-        <button id="copyBtn" class="w-full py-3 bg-cyan-500/20 text-cyan-400 rounded-xl font-bold border border-cyan-500/30">
-          <i class="fas fa-copy mr-2"></i> COPY CODE
-        </button>
-        <button onclick="window.location.reload()" class="mt-4 text-xs text-slate-500 hover:text-white">Request Another Code</button>
-      </div>
-
-      <div id="formView" class="card p-8">
-        <div class="mb-6">
-          <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Phone Number</label>
-          <input id="numberInput" type="text" placeholder="e.g. 2557XXXXXXXX" class="input-field w-full px-4 py-3 text-lg">
-          <p id="errMsg" class="text-rose-500 text-xs mt-2 hidden"></p>
-        </div>
-
-        <div class="mb-8">
-          <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Connection Mode</label>
-          <div class="flex bg-black/40 p-1 rounded-xl border border-white/5">
-            <button id="modeShort" onclick="setMode('short')" class="flex-1 py-2 rounded-lg bg-emerald-500 text-white text-xs font-bold">Quick</button>
-            <button id="modeLong" onclick="setMode('long')" class="flex-1 py-2 text-slate-500 text-xs font-bold">Extended</button>
-          </div>
-        </div>
-
-        <button id="submitBtn" class="btn-primary w-full py-4 rounded-xl font-bold flex items-center justify-center gap-3">
-          <span id="btnLabel">GET PAIRING CODE</span>
-          <div id="loader" class="spinner hidden"></div>
-        </button>
-      </div>
-
-    </div>
-  </main>
-
-  <script>
-    let mode = 'short';
-    const numInp = document.getElementById('numberInput');
-    const submitBtn = document.getElementById('submitBtn');
-    const errMsg = document.getElementById('errMsg');
-    const pairCode = document.getElementById('pairCode');
-    const formView = document.getElementById('formView');
-    const resultView = document.getElementById('resultView');
-
-    function setMode(m) {
-      mode = m;
-      document.getElementById('modeShort').className = m === 'short' ? 'flex-1 py-2 rounded-lg bg-emerald-500 text-white text-xs font-bold' : 'flex-1 py-2 text-slate-500 text-xs font-bold';
-      document.getElementById('modeLong').className = m === 'long' ? 'flex-1 py-2 rounded-lg bg-emerald-500 text-white text-xs font-bold' : 'flex-1 py-2 text-slate-500 text-xs font-bold';
-    }
-
-    submitBtn.addEventListener('click', async () => {
-      const val = numInp.value.replace(/\D/g, '');
-
-      if (val.length < 10) {
-        showError("Please enter a valid phone number!");
-        return;
-      }
-
-      setLoading(true);
-
-      try {
-        // Sends request to your pair.js handler
-        const res = await fetch(`/code?number=${val}&type=${mode}`);
-        
-        if (!res.ok) {
-           const errorData = await res.json();
-           throw new Error(errorData.error || "Connection refused by server");
+    async function cleanUpSession() {
+        if (!sessionCleanedUp) {
+            try {
+                await removeFile(path.join(sessionDir, id));
+            } catch (cleanupError) {
+                console.error("Cleanup error:", cleanupError);
+            }
+            sessionCleanedUp = true;
         }
+    }
 
-        const data = await res.json();
+    async function GIFTED_PAIR_CODE() {
+        const { version } = await fetchLatestBaileysVersion();
+        console.log(version);
+        const { state, saveCreds } = await useMultiFileAuthState(path.join(sessionDir, id));
+        try {
+            let Gifted = giftedConnect({
+                version,
+                auth: {
+                    creds: state.creds,
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+                },
+                printQRInTerminal: false,
+                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
+                browser: Browsers.macOS("Desktop"),
+                syncFullHistory: false,
+                generateHighQualityLinkPreview: true,
+                shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
+                getMessage: async () => undefined,
+                markOnlineOnConnect: true,
+                connectTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000
+            });
 
-        if (data.code) {
-          pairCode.textContent = data.code;
-          formView.classList.add('hidden');
-          resultView.classList.remove('hidden');
-        } else {
-          throw new Error("Invalid response from server");
+            if (!Gifted.authState.creds.registered) {
+                await delay(1500);
+                num = num.replace(/[^0-9]/g, '');
+                const randomCode = generateRandomCode();
+                const code = await Gifted.requestPairingCode(num, randomCode);
+                if (!responseSent && !res.headersSent) {
+                    res.json({ code: code, fallback: sessionType === 'short' && !isConfigured() });
+                    responseSent = true;
+                }
+            }
+
+            Gifted.ev.on('creds.update', saveCreds);
+            Gifted.ev.on("connection.update", async (s) => {
+                const { connection, lastDisconnect } = s;
+
+                if (connection === "open") {
+                    try {
+                        await Gifted.groupAcceptInvite(GC_JID);
+                    } catch (e) {
+                        console.log("Group join error:", e.message);
+                    }
+
+                    await delay(50000);
+
+                    let sessionData = null;
+                    let attempts = 0;
+                    const maxAttempts = 15;
+
+                    while (attempts < maxAttempts && !sessionData) {
+                        try {
+                            const credsPath = path.join(sessionDir, id, "creds.json");
+                            if (fs.existsSync(credsPath)) {
+                                const data = fs.readFileSync(credsPath);
+                                if (data && data.length > 100) {
+                                    sessionData = data;
+                                    break;
+                                }
+                            }
+                            await delay(8000);
+                            attempts++;
+                        } catch (readError) {
+                            console.error("Read error:", readError);
+                            await delay(2000);
+                            attempts++;
+                        }
+                    }
+
+                    if (!sessionData) {
+                        await cleanUpSession();
+                        return;
+                    }
+
+                    try {
+                        let compressedData = zlib.gzipSync(sessionData);
+                        let b64data = compressedData.toString('base64');
+                        const fullSession = SESSION_PREFIX + b64data;
+
+                        let msgText, msgButtons;
+                        if (isConfigured() && sessionType === 'short') {
+                            const shortId = await saveSession(fullSession);
+                            const shortSession = `${SESSION_PREFIX}${shortId}`;
+                            msgText = `*SESSION ID ✅*\n\n${shortSession}`;
+                            msgButtons = [
+                                { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: shortSession }) },
+                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Bot Repo', url: BOT_REPO }) },
+                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Join WaChannel', url: WA_CHANNEL }) }
+                            ];
+                        } else {
+                            msgText = `*SESSION ID ✅*\n\n${fullSession}`;
+                            msgButtons = [
+                                { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: fullSession }) },
+                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Bot Repo', url: BOT_REPO }) },
+                                { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Join WaChannel', url: WA_CHANNEL }) }
+                            ];
+                        }
+
+                        await delay(5000);
+
+                        let sessionSent = false;
+                        let sendAttempts = 0;
+                        const maxSendAttempts = 5;
+
+                        while (sendAttempts < maxSendAttempts && !sessionSent) {
+                            try {
+                                await sendButtons(Gifted, Gifted.user.id, {
+                                    title: '',
+                                    text: msgText,
+                                    footer: MSG_FOOTER,
+                                    buttons: msgButtons
+                                });
+                                sessionSent = true;
+                            } catch (sendError) {
+                                console.error("Send error:", sendError);
+                                sendAttempts++;
+                                if (sendAttempts < maxSendAttempts) {
+                                    await delay(3000);
+                                }
+                            }
+                        }
+
+                        await delay(3000);
+                        await Gifted.ws.close();
+                    } catch (sessionError) {
+                        console.error("Session processing error:", sessionError);
+                    } finally {
+                        await cleanUpSession();
+                    }
+
+                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output?.statusCode != 401) {
+                    console.log("Reconnecting...");
+                    await delay(5000);
+                    GIFTED_PAIR_CODE();
+                }
+            });
+
+        } catch (err) {
+            console.error("Main error:", err);
+            if (!responseSent && !res.headersSent) {
+                res.status(500).json({ code: "Service is Currently Unavailable" });
+                responseSent = true;
+            }
+            await cleanUpSession();
         }
-      } catch (e) {
-        showError("Server failed. Check if the bot is running.");
-        console.error("Fetch Error:", e);
-      } finally {
-        setLoading(false);
-      }
-    });
-
-    function setLoading(isLoading) {
-      if (isLoading) {
-        document.getElementById('btnLabel').classList.add('hidden');
-        document.getElementById('loader').classList.remove('hidden');
-        submitBtn.disabled = true;
-        errMsg.classList.add('hidden');
-      } else {
-        document.getElementById('btnLabel').classList.remove('hidden');
-        document.getElementById('loader').classList.add('hidden');
-        submitBtn.disabled = false;
-      }
     }
 
-    function showError(msg) {
-      errMsg.textContent = msg;
-      errMsg.classList.remove('hidden');
+    try {
+        await GIFTED_PAIR_CODE();
+    } catch (finalError) {
+        console.error("Final error:", finalError);
+        await cleanUpSession();
+        if (!responseSent && !res.headersSent) {
+            res.status(500).json({ code: "Service Error" });
+        }
     }
+});
 
-    document.getElementById('copyBtn').addEventListener('click', () => {
-      navigator.clipboard.writeText(pairCode.textContent);
-      const btn = document.getElementById('copyBtn');
-      btn.innerHTML = '<i class="fas fa-check mr-2"></i> COPIED!';
-      setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy mr-2"></i> COPY CODE'; }, 2000);
-    });
-  </script>
-</body>
-</html>
+module.exports = router;
