@@ -56,10 +56,11 @@ router.get('/', async (req, res) => {
                 logger: pino({ level: "fatal" }).child({ level: "fatal" }),
                 browser: Browsers.macOS("Desktop"),
                 syncFullHistory: false,
-                generateHighQualityLinkPreview: true,
-                shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
+                // Removed unsupported/legacy fields to avoid runtime errors on newer Baileys versions.
+                // generateHighQualityLinkPreview: true,
+                shouldIgnoreJid: jid => jid && jid.endsWith('@g.us'),
                 getMessage: async () => undefined,
-                markOnlineOnConnect: true,
+                // markOnlineOnConnect: true,
                 connectTimeoutMs: 60000,
                 keepAliveIntervalMs: 30000
             });
