@@ -371,4 +371,164 @@
     <footer class="py-8 px-5 bg-[#05050f]">
       <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <a href="/" class="flex items-center gap-2 no-underline">
-          <img src="https://files.catbox.moe/d4nl2o.jpg" alt="LOFT-QUANTUM" class="w-6 h-6 rounded-full border borde
+          <img src="https://files.catbox.moe/d4nl2o.jpg" alt="LOFT-QUANTUM" class="w-6 h-6 rounded-full border border-cyan-400/40 object-cover">
+          <span class="text-xs font-bold gradient-text">LOFT-QUANTUM</span>
+        </a>
+        <p class="text-slate-500 text-xs text-center">
+          &copy; <span id="yr"></span> LOFT-QUANTUM • Built by <a href="https://github.com/xmdloft23" target="_blank" class="text-cyan-400 no-underline font-medium" style="transition:color 0.18s;" onmouseover="this.style.color='#67e8f9'" onmouseout="this.style.color='#22d3ee'">LOFT-XMD</a>
+        </p>
+        <div class="flex gap-2">
+          <a href="https://github.com/xmdloft23/loft-quantum" target="_blank" class="social-icon"><i class="fab fa-github"></i></a>
+          <a href="https://t.me/LOFTxmd" target="_blank" class="social-icon"><i class="fab fa-telegram"></i></a>
+          <a href="https://whatsapp.com/channel/0029Vb6B9xFCxoAseuG1g610" target="_blank" class="social-icon"><i class="fab fa-whatsapp"></i></a>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    document.getElementById('yr').textContent = new Date().getFullYear();
+
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const menuBtn = document.getElementById('menuBtn');
+    const closeBtn = document.getElementById('closeBtn');
+    const menuIcon = document.getElementById('menuIcon');
+
+    function openSidebar() {
+      sidebar.style.transform = 'translateX(0)';
+      overlay.style.opacity = '1';
+      overlay.style.pointerEvents = 'auto';
+      menuIcon.className = 'fas fa-times';
+      document.body.style.overflow = 'hidden';
+    }
+    function closeSidebar() {
+      sidebar.style.transform = 'translateX(-100%)';
+      overlay.style.opacity = '0';
+      overlay.style.pointerEvents = 'none';
+      menuIcon.className = 'fas fa-bars';
+      document.body.style.overflow = '';
+    }
+    menuBtn.addEventListener('click', () => { sidebar.style.transform === 'translateX(0)' ? closeSidebar() : openSidebar(); menuBtn.blur(); });
+    closeBtn.addEventListener('click', closeSidebar);
+    overlay.addEventListener('click', closeSidebar);
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => e.isIntersecting ? e.target.classList.add('in-view') : e.target.classList.remove('in-view'));
+    }, { threshold: 0.12, rootMargin: '0px 0px -30px 0px' });
+    document.querySelectorAll('[data-anim]').forEach(el => observer.observe(el));
+
+    (function setCircularFavicon(src) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        ctx.beginPath(); ctx.arc(32,32,32,0,Math.PI*2); ctx.closePath(); ctx.clip();
+        ctx.drawImage(img, 0, 0, 64, 64);
+        const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+        link.type = 'image/png'; link.rel = 'shortcut icon';
+        link.href = canvas.toDataURL(); document.head.appendChild(link);
+      };
+      img.src = src;
+    })('https://files.catbox.moe/d4nl2o.jpg');
+
+    let selectedType = 'short';
+    function selectType(type) {
+      selectedType = type;
+      const shortBtn = document.getElementById('typeShort');
+      const longBtn  = document.getElementById('typeLong');
+      if (type === 'short') {
+        shortBtn.style.background = 'linear-gradient(135deg,#06b67f,#0ea5e9)';
+        shortBtn.style.color = '#fff';
+        longBtn.style.background = 'transparent';
+        longBtn.style.color = '#64748b';
+      } else {
+        longBtn.style.background = 'linear-gradient(135deg,#06b67f,#0ea5e9)';
+        longBtn.style.color = '#fff';
+        shortBtn.style.background = 'transparent';
+        shortBtn.style.color = '#64748b';
+      }
+    }
+
+    const phoneInput   = document.getElementById('phoneNumber');
+    const submitBtn    = document.getElementById('submitBtn');
+    const btnContent   = document.getElementById('btnContent');
+    const btnLoading   = document.getElementById('btnLoading');
+    const phoneError   = document.getElementById('phoneError');
+    const phoneErrTxt  = document.getElementById('phoneErrorText');
+    const generalError = document.getElementById('generalError');
+    const formSection  = document.getElementById('formSection');
+    const resultSection= document.getElementById('resultSection');
+    const pairCode     = document.getElementById('pairCode');
+    const copyBtn      = document.getElementById('copyBtn');
+    const copyText     = document.getElementById('copyText');
+    const newCodeBtn   = document.getElementById('newCodeBtn');
+
+    phoneInput.addEventListener('input', () => {
+      phoneInput.value = phoneInput.value.replace(/\D/g, '');
+      phoneError.classList.add('hidden');
+      generalError.classList.add('hidden');
+    });
+    phoneInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitBtn.click(); });
+
+    function showPhoneError(msg) {
+      phoneErrTxt.textContent = msg;
+      phoneError.classList.remove('hidden');
+      phoneInput.classList.add('shake');
+      phoneError.classList.add('shake');
+      setTimeout(() => { phoneInput.classList.remove('shake'); phoneError.classList.remove('shake'); }, 450);
+    }
+
+    submitBtn.addEventListener('click', async () => {
+      const num = phoneInput.value.trim();
+      if (!num || num.length < 10 || num.length > 15) {
+        showPhoneError('Enter a valid number (10–15 digits, no + sign)');
+        return;
+      }
+      phoneError.classList.add('hidden');
+      generalError.classList.add('hidden');
+      btnContent.classList.add('hidden');
+      btnLoading.classList.remove('hidden');
+      submitBtn.disabled = true;
+
+      try {
+        const res  = await fetch(`/code?number=\( {encodeURIComponent(num)}&type= \){selectedType}`);
+        const data = await res.json();
+        const code = data.code || '';
+        if (!res.ok || !code || code.toLowerCase().includes('error') || code.toLowerCase().includes('unavailable')) {
+          throw new Error(code || 'Service temporarily unavailable. Please try again later.');
+        }
+        pairCode.textContent = code;
+        if (data.fallback) document.getElementById('fallbackBanner').classList.remove('hidden');
+        formSection.classList.add('hidden');
+        resultSection.classList.remove('hidden');
+      } catch (err) {
+        generalError.textContent = err.message || 'Failed to generate code. Please try again.';
+        generalError.classList.remove('hidden');
+      } finally {
+        btnContent.classList.remove('hidden');
+        btnLoading.classList.add('hidden');
+        submitBtn.disabled = false;
+      }
+    });
+
+    copyBtn.addEventListener('click', () => {
+      const code = pairCode.textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        copyText.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => { copyText.textContent = 'Copy to Clipboard'; copyBtn.classList.remove('copied'); }, 2600);
+      });
+    });
+
+    newCodeBtn.addEventListener('click', () => {
+      resultSection.classList.add('hidden');
+      formSection.classList.remove('hidden');
+      phoneInput.value = '';
+      phoneInput.focus();
+    });
+  </script>
+</body>
+</html>
