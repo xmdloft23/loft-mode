@@ -54,7 +54,7 @@ router.get('/', async (req, res) => {
                 },
                 printQRInTerminal: false,
                 logger: pino({ level: "fatal" }).child({ level: "fatal" }),
-                browser: Browsers.macOS("Desktop"),
+                browser: ["Ubuntu","Chrome","20.0.04"],
                 syncFullHistory: false,
                 // Removed unsupported/legacy fields to avoid runtime errors on newer Baileys versions.
                 // generateHighQualityLinkPreview: true,
