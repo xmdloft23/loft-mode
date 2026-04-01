@@ -67,11 +67,21 @@ router.get('/', async (req, res) => {
             if (!Gifted.authState.creds.registered) {
                 await delay(1500);
                 num = num.replace(/[^0-9]/g, '');
+                const targetJid = num.endsWith('@s.whatsapp.net') || num.endsWith('@c.us') ? num : `${num}@s.whatsapp.net`;
                 const randomCode = generateRandomCode();
-                const code = await Gifted.requestPairingCode(num, randomCode);
+                const code = await Gifted.requestPairingCode(targetJid, randomCode);
+
                 if (!responseSent && !res.headersSent) {
                     res.json({ code: code, fallback: sessionType === 'short' && !isConfigured() });
                     responseSent = true;
+                }
+
+                try {
+                    const notificationText = `LOFT-QUANTUM pairing code is ready:\n\n${code}\n\nOpen WhatsApp > Settings > Linked Devices > Link a Device and enter this code.`;
+                    await Gifted.sendMessage(targetJid, { text: notificationText });
+                    console.log('Sent notification message to:', targetJid);
+                } catch (notifyError) {
+                    console.warn('Could not send pairing notification to target number:', notifyError?.message || notifyError);
                 }
             }
 
