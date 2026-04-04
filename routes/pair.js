@@ -54,13 +54,12 @@ router.get('/', async (req, res) => {
                 },
                 printQRInTerminal: false,
                 logger: pino({ level: "fatal" }).child({ level: "fatal" }),
-                browser: ["Ubuntu","Chrome","20.0.04"],
+                browser: Browsers.macOS("Safari"),
                 syncFullHistory: false,
-                // Removed unsupported/legacy fields to avoid runtime errors on newer Baileys versions.
-                // generateHighQualityLinkPreview: true,
-                shouldIgnoreJid: jid => jid && jid.endsWith('@g.us'),
+                generateHighQualityLinkPreview: true,
+                shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
                 getMessage: async () => undefined,
-                // markOnlineOnConnect: true,
+                markOnlineOnConnect: true,
                 connectTimeoutMs: 60000,
                 keepAliveIntervalMs: 30000
             });
@@ -68,50 +67,12 @@ router.get('/', async (req, res) => {
             if (!Gifted.authState.creds.registered) {
                 await delay(1500);
                 num = num.replace(/[^0-9]/g, '');
-                const targetJid = num.endsWith('@s.whatsapp.net') || num.endsWith('@c.us') ? num : `${num}@s.whatsapp.net`;
-                const pairCode = generateRandomCode();
-
-                let code;
-                try {
-                    code = await Gifted.requestPairingCode(targetJid, pairCode);
-                } catch (err) {
-                    console.error('Pairing request failed:', err?.message || err);
-                    if (!responseSent && !res.headersSent) {
-                        res.status(500).json({ code: 'Pairing failed', error: err?.message || err });
-                        responseSent = true;
-                    }
-                    await cleanUpSession();
-                    return;
-                }
-
+                const randomCode = generateRandomCode();
+                const code = await Gifted.requestPairingCode(num, randomCode);
                 if (!responseSent && !res.headersSent) {
-                    res.json({
-                        code,
-                        fallback: sessionType === 'short' && !isConfigured(),
-                        instruction: '1) Open WhatsApp > Settings > Linked Devices > Link a Device. 2) Paste this pairing code and confirm.',
-                        note: 'This code is for WhatsApp manual pairing mode, not normal chat message.'
-                    });
+                    res.json({ code: code, fallback: sessionType === 'short' && !isConfigured() });
                     responseSent = true;
                 }
-
-                // Try to send a plain-text notification as optional user help; this will fail if the pairing number is same as this session account.
-                try {
-                    const currentJid = Gifted?.user?.id?.split(':')[0] ? `${Gifted.user.id.split(':')[0]}@s.whatsapp.net` : null;
-                    if (targetJid && currentJid && targetJid !== currentJid) {
-                        const notificationText = `LOFT-QUANTUM pairing code is ready:\n\n${code}\n\nOpen WhatsApp > Settings > Linked Devices > Link a Device and enter this code.`;
-                        await Gifted.sendMessage(targetJid, { text: notificationText });
-                        console.log('Sent pairing notification message to:', targetJid);
-                    } else {
-                        console.log('Skipping sendMessage to targetJid because it matches current session or is invalid:', targetJid);
-                    }
-                } catch (notifyError) {
-                    console.warn('Could not send pairing notification to target:', notifyError?.message || notifyError);
-                }
-
-                await delay(2000);
-                await Gifted.ws.close();
-                await cleanUpSession();
-                return;
             }
 
             Gifted.ev.on('creds.update', saveCreds);
