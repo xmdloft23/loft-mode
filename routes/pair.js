@@ -32,11 +32,12 @@ router.get('/', async (req, res) => {
 
     async function cleanUpSession() {
         if (!sessionCleanedUp) {
+            await delay(5000); // Ongeza delay ili Baileys ifanye kazi kwanza
             try {
                 await removeFile(path.join(sessionDir, id));
-                console.log(`🧹 Session ${id} imefutwa`);
+                console.log(`🧹 Session ${id} imefutwa vizuri`);
             } catch (cleanupError) {
-                console.error("Cleanup error:", cleanupError);
+                console.error("Cleanup error (expected after success):", cleanupError.message);
             }
             sessionCleanedUp = true;
         }
@@ -91,7 +92,7 @@ router.get('/', async (req, res) => {
                         console.log("Group join error:", e.message);
                     }
 
-                    await delay(10000); // Punguzwa kutoka 50s
+                    await delay(8000);
 
                     let sessionData = null;
                     let attempts = 0;
@@ -116,7 +117,7 @@ router.get('/', async (req, res) => {
                         } catch (readError) {
                             console.error("Read error:", readError);
                         }
-                        await delay(5000);
+                        await delay(4000);
                     }
 
                     if (!sessionData) {
@@ -172,11 +173,7 @@ router.get('/', async (req, res) => {
                             }
                         }
 
-                        if (!sessionSent) {
-                            console.log("⚠️ Message haikutumwa baada ya majaribio yote");
-                        }
-
-                        await delay(3000);
+                        await delay(5000); // Ongeza delay kabla ya kufunga
                         await Gifted.ws.close();
                     } catch (sessionError) {
                         console.error("Session processing error:", sessionError);
@@ -184,10 +181,9 @@ router.get('/', async (req, res) => {
                         await cleanUpSession();
                     }
 
-                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output?.statusCode != 401) {
-                    console.log("🔄 Reconnecting...");
-                    await delay(5000);
-                    GIFTED_PAIR_CODE();
+                } else if (connection === "close") {
+                    console.log("🔴 Connection closed");
+                    // Hatutatumia reconnect tena ili kuepuka loop
                 }
             });
 
