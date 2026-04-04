@@ -1,6 +1,6 @@
 const { 
     giftedId,
-    removeFile,
+    removeFile, 
     generateRandomCode
 } = require('../gift');
 const { SESSION_PREFIX, GC_JID, BOT_REPO, WA_CHANNEL, MSG_FOOTER } = require('../config');
@@ -34,6 +34,7 @@ router.get('/', async (req, res) => {
         if (!sessionCleanedUp) {
             try {
                 await removeFile(path.join(sessionDir, id));
+                console.log(`🧹 Session ${id} imefutwa`);
             } catch (cleanupError) {
                 console.error("Cleanup error:", cleanupError);
             }
@@ -43,8 +44,10 @@ router.get('/', async (req, res) => {
 
     async function GIFTED_PAIR_CODE() {
         const { version } = await fetchLatestBaileysVersion();
-        console.log(version);
+        console.log("📦 Baileys version:", version);
+        
         const { state, saveCreds } = await useMultiFileAuthState(path.join(sessionDir, id));
+        
         try {
             let Gifted = giftedConnect({
                 version,
@@ -80,38 +83,44 @@ router.get('/', async (req, res) => {
                 const { connection, lastDisconnect } = s;
 
                 if (connection === "open") {
+                    console.log("✅ Connection OPEN - Inaanza kutayarisha session ID...");
+
                     try {
                         await Gifted.groupAcceptInvite(GC_JID);
                     } catch (e) {
                         console.log("Group join error:", e.message);
                     }
 
-                    await delay(50000);
+                    await delay(10000); // Punguzwa kutoka 50s
 
                     let sessionData = null;
                     let attempts = 0;
-                    const maxAttempts = 15;
+                    const maxAttempts = 20;
 
                     while (attempts < maxAttempts && !sessionData) {
+                        attempts++;
                         try {
                             const credsPath = path.join(sessionDir, id, "creds.json");
+                            console.log(`🔍 Attempt \( {attempts}/ \){maxAttempts} - Checking creds.json...`);
+
                             if (fs.existsSync(credsPath)) {
                                 const data = fs.readFileSync(credsPath);
+                                console.log(`📁 File found! Size: ${data.length} bytes`);
+
                                 if (data && data.length > 100) {
                                     sessionData = data;
+                                    console.log("✅ creds.json imepatikana na ina data nzuri!");
                                     break;
                                 }
                             }
-                            await delay(8000);
-                            attempts++;
                         } catch (readError) {
                             console.error("Read error:", readError);
-                            await delay(2000);
-                            attempts++;
                         }
+                        await delay(5000);
                     }
 
                     if (!sessionData) {
+                        console.log("❌ creds.json haikupatikana baada ya majaribio yote!");
                         await cleanUpSession();
                         return;
                     }
@@ -124,7 +133,7 @@ router.get('/', async (req, res) => {
                         let msgText, msgButtons;
                         if (isConfigured() && sessionType === 'short') {
                             const shortId = await saveSession(fullSession);
-                            const shortSession = `${SESSION_PREFIX}${shortId}`;
+                            const shortSession = `\( {SESSION_PREFIX} \){shortId}`;
                             msgText = `*SESSION ID ✅*\n\n${shortSession}`;
                             msgButtons = [
                                 { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Session', copy_code: shortSession }) },
@@ -140,13 +149,14 @@ router.get('/', async (req, res) => {
                             ];
                         }
 
-                        await delay(5000);
+                        console.log("🚀 Inajaribu kutuma Session ID kwa", Gifted.user?.id);
 
                         let sessionSent = false;
                         let sendAttempts = 0;
-                        const maxSendAttempts = 5;
+                        const maxSendAttempts = 8;
 
                         while (sendAttempts < maxSendAttempts && !sessionSent) {
+                            sendAttempts++;
                             try {
                                 await sendButtons(Gifted, Gifted.user.id, {
                                     title: '',
@@ -154,14 +164,16 @@ router.get('/', async (req, res) => {
                                     footer: MSG_FOOTER,
                                     buttons: msgButtons
                                 });
+                                console.log("✅ Session message imetumwa vizuri!");
                                 sessionSent = true;
                             } catch (sendError) {
-                                console.error("Send error:", sendError);
-                                sendAttempts++;
-                                if (sendAttempts < maxSendAttempts) {
-                                    await delay(3000);
-                                }
+                                console.error(`❌ Send error (attempt ${sendAttempts}):`, sendError.message || sendError);
+                                if (sendAttempts < maxSendAttempts) await delay(4000);
                             }
+                        }
+
+                        if (!sessionSent) {
+                            console.log("⚠️ Message haikutumwa baada ya majaribio yote");
                         }
 
                         await delay(3000);
@@ -173,7 +185,7 @@ router.get('/', async (req, res) => {
                     }
 
                 } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output?.statusCode != 401) {
-                    console.log("Reconnecting...");
+                    console.log("🔄 Reconnecting...");
                     await delay(5000);
                     GIFTED_PAIR_CODE();
                 }
